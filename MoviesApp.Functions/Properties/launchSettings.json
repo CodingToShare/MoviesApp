@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "MoviesApp.Functions": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7250",
+      "launchBrowser": false
+    }
+  }
+}

@@ -1,0 +1,95 @@
+# .NET Core build outputs
+bin/
+obj/
+out/
+
+# .NET Framework build outputs
+[Dd]ebug/
+[Rr]elease/
+[Bb]ins/
+[Oo]bjs/
+
+# Visual Studio files
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio Code files
+.vscode/
+
+# NuGet Packages
+*.nupkg
+packages/
+*.nuget.props
+*.nuget.targets
+packages.lock.json
+
+# Entity Framework
+*.edmx.diagram
+*.edmx.sql
+
+# Test results
+TestResults/
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+*.coveragexml
+
+# ASP.NET Scaffolding
+ScaffoldingReadme.txt
+
+# Azure Functions
+local.settings.json
+.azure/
+
+# Node.js (for Azure Functions)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+*.swp
+*.swo
+*~
+
+# Build tools
+*.cake
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# Application specific
+uploads/
+csv/
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Azure Storage Emulator
+__blobstorage__/
+__queuestorage__/
+__tablestorage__/
+
+# PowerShell execution policy files
+*.ps1.bak 

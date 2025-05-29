@@ -1,0 +1,61 @@
+# MoviesApp API - Test Cases básicos
+# Archivo de pruebas HTTP para los 3 endpoints básicos
+
+@baseUrl = https://localhost:7158
+
+### 1. GET - Obtener película por ID
+GET {{baseUrl}}/api/movie?id=1
+
+### 2. GET - Obtener película por ID (no existente)
+GET {{baseUrl}}/api/movie?id=999
+
+### 3. GET - Obtener películas con parámetros por defecto
+GET {{baseUrl}}/api/movies
+
+### 4. GET - Obtener películas con parámetros específicos
+GET {{baseUrl}}/api/movies?total=5&order=desc
+
+### 5. GET - Obtener películas con parámetros específicos ascendente
+GET {{baseUrl}}/api/movies?total=3&order=asc
+
+### 6. POST - Crear nueva película
+POST {{baseUrl}}/api/movie
+Content-Type: application/json
+
+{
+  "id": 1,
+  "film": "The Matrix",
+  "genre": "Sci-Fi",
+  "studio": "Warner Bros",
+  "score": 85,
+  "year": 1999
+}
+
+### 7. POST - Crear otra película
+POST {{baseUrl}}/api/movie
+Content-Type: application/json
+
+{
+  "id": 2,
+  "film": "Inception",
+  "genre": "Thriller",
+  "studio": "Warner Bros",
+  "score": 88,
+  "year": 2010
+}
+
+### 8. POST - Crear película con datos inválidos (para probar validación)
+POST {{baseUrl}}/api/movie
+Content-Type: application/json
+
+{
+  "id": -1,
+  "film": "",
+  "genre": "Sci-Fi",
+  "studio": "Warner Bros",
+  "score": 150,
+  "year": 1800
+}
+
+### 9. GET - Verificar que las películas se crearon
+GET {{baseUrl}}/api/movies?total=10&order=asc
