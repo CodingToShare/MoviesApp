@@ -81,7 +81,10 @@ Thumbs.db
 # Application specific
 uploads/
 csv/
-data/
+# Exclude data folders but NOT source code Data folders
+/data/
+*/data/
+!*/Infrastructure/Data/
 *.db
 *.db-shm
 *.db-wal
