@@ -146,35 +146,37 @@ public class CsvBlobTrigger
     /// <summary>
     /// Guarda un log del procesamiento en la base de datos (opcional)
     /// </summary>
-    private async Task SaveProcessingLogAsync(CsvProcessingResult result, DateTime startTime, string blobUri)
+    private Task SaveProcessingLogAsync(CsvProcessingResult result, DateTime startTime, string blobUri)
     {
         try
         {
             // Aquí podrías crear una tabla de logs para tracking
             // Por ahora solo loggeamos que se podría implementar
             _logger.LogDebug("💾 Log de procesamiento guardado para {FileName}", result.FileName);
-            await Task.CompletedTask;
+            return Task.CompletedTask;
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "⚠️ No se pudo guardar el log de procesamiento para {FileName}", result.FileName);
+            return Task.CompletedTask;
         }
     }
 
     /// <summary>
     /// Guarda un log de error en la base de datos (opcional)
     /// </summary>
-    private async Task SaveErrorLogAsync(string fileName, string errorMessage, string blobUri)
+    private Task SaveErrorLogAsync(string fileName, string errorMessage, string blobUri)
     {
         try
         {
             // Aquí podrías crear una tabla de logs de errores
             _logger.LogDebug("💾 Log de error guardado para {FileName}", fileName);
-            await Task.CompletedTask;
+            return Task.CompletedTask;
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "⚠️ No se pudo guardar el log de error para {FileName}", fileName);
+            return Task.CompletedTask;
         }
     }
 

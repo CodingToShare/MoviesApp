@@ -141,56 +141,67 @@ public class MovieService : IMovieService
     // Métodos no implementados para los 3 endpoints básicos
     public Task<IEnumerable<MovieDto>> GetByGenreAsync(string genre, CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException("Método no implementado para los endpoints básicos");
+        return Task.FromException<IEnumerable<MovieDto>>(
+            new NotImplementedException("Método no implementado para los endpoints básicos"));
     }
 
     public Task<IEnumerable<MovieDto>> GetByYearAsync(int year, CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException("Método no implementado para los endpoints básicos");
+        return Task.FromException<IEnumerable<MovieDto>>(
+            new NotImplementedException("Método no implementado para los endpoints básicos"));
     }
 
     public Task<IEnumerable<MovieDto>> GetByMinScoreAsync(int minScore, CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException("Método no implementado para los endpoints básicos");
+        return Task.FromException<IEnumerable<MovieDto>>(
+            new NotImplementedException("Método no implementado para los endpoints básicos"));
     }
 
     public Task<MovieDto?> UpdateAsync(int id, UpdateMovieDto updateMovieDto, CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException("Método no implementado para los endpoints básicos");
+        return Task.FromException<MovieDto?>(
+            new NotImplementedException("Método no implementado para los endpoints básicos"));
     }
 
     public Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException("Método no implementado para los endpoints básicos");
+        return Task.FromException<bool>(
+            new NotImplementedException("Método no implementado para los endpoints básicos"));
     }
 
     public Task<bool> ExistsAsync(int id, CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException("Método no implementado para los endpoints básicos");
+        return Task.FromException<bool>(
+            new NotImplementedException("Método no implementado para los endpoints básicos"));
     }
 
     public Task<int> GetCountAsync(CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException("Método no implementado para los endpoints básicos");
+        return Task.FromException<int>(
+            new NotImplementedException("Método no implementado para los endpoints básicos"));
     }
 
     public Task<CsvLoadResultDto> LoadFromCsvAsync(string csvFilePath, bool validateDuplicates = true, CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException("Método no implementado para los endpoints básicos");
+        return Task.FromException<CsvLoadResultDto>(
+            new NotImplementedException("Método no implementado para los endpoints básicos"));
     }
 
     public Task<CsvLoadResultDto> LoadFromCsvStreamAsync(Stream csvStream, bool validateDuplicates = true, CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException("Método no implementado para los endpoints básicos");
+        return Task.FromException<CsvLoadResultDto>(
+            new NotImplementedException("Método no implementado para los endpoints básicos"));
     }
 
     public Task<ValidationResultDto> ValidateMovieAsync(CreateMovieDto createMovieDto)
     {
-        throw new NotImplementedException("Método no implementado para los endpoints básicos");
+        return Task.FromException<ValidationResultDto>(
+            new NotImplementedException("Método no implementado para los endpoints básicos"));
     }
 
     public Task<MovieStatsDto> GetStatsAsync(CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException("Método no implementado para los endpoints básicos");
+        return Task.FromException<MovieStatsDto>(
+            new NotImplementedException("Método no implementado para los endpoints básicos"));
     }
 } 

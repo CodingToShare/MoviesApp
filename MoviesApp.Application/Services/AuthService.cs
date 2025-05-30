@@ -142,7 +142,7 @@ public class AuthService : IAuthService
         }
     }
 
-    public async Task<bool> ValidateTokenAsync(string token, CancellationToken cancellationToken = default)
+    public Task<bool> ValidateTokenAsync(string token, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -159,11 +159,11 @@ public class AuthService : IAuthService
                 ClockSkew = TimeSpan.Zero
             }, out SecurityToken validatedToken);
 
-            return true;
+            return Task.FromResult(true);
         }
         catch
         {
-            return false;
+            return Task.FromResult(false);
         }
     }
 

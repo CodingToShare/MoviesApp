@@ -388,7 +388,7 @@ public class MovieRepository : IMovieRepository
     /// <summary>
     /// Carga películas desde un stream CSV
     /// </summary>
-    public async Task<IEnumerable<Movie>> LoadFromCsvStreamAsync(Stream csvStream, CancellationToken cancellationToken = default)
+    public Task<IEnumerable<Movie>> LoadFromCsvStreamAsync(Stream csvStream, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -436,7 +436,7 @@ public class MovieRepository : IMovieRepository
             }
 
             _logger.LogInformation("Se cargaron {Count} películas válidas desde CSV", movies.Count);
-            return movies;
+            return Task.FromResult<IEnumerable<Movie>>(movies);
         }
         catch (Exception ex)
         {

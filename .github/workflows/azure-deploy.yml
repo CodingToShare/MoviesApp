@@ -23,16 +23,49 @@ jobs:
     - name: 🔄 Checkout code
       uses: actions/checkout@v4
 
+    - name: 🔍 Verify project structure
+      run: |
+        echo "=== Verifying project structure ==="
+        echo "Current directory:"
+        pwd
+        echo "Root files:"
+        ls -la
+        echo ""
+        echo "MoviesApp.Infrastructure structure:"
+        ls -la MoviesApp.Infrastructure/
+        echo ""
+        echo "Data folder contents:"
+        ls -la MoviesApp.Infrastructure/Data/ || echo "❌ Data folder missing!"
+        echo ""
+        echo "Checking key files:"
+        ls -la MoviesApp.Infrastructure/Data/MoviesDbContext.cs || echo "❌ MoviesDbContext.cs missing!"
+        ls -la MoviesApp.Infrastructure/DependencyInjection.cs || echo "❌ DependencyInjection.cs missing!"
+        echo ""
+        echo "Checking using statements in DependencyInjection.cs:"
+        head -10 MoviesApp.Infrastructure/DependencyInjection.cs || echo "❌ Cannot read DependencyInjection.cs"
+        echo ""
+        echo "Checking .csproj files:"
+        ls -la MoviesApp.Infrastructure/MoviesApp.Infrastructure.csproj || echo "❌ .csproj missing!"
+        echo ""
+        echo "Checking AuthService.cs ValidateTokenAsync method (should not be async):"
+        grep -n "public.*ValidateTokenAsync" MoviesApp.Application/Services/AuthService.cs || echo "❌ Cannot find ValidateTokenAsync method"
+
     - name: 🛠️ Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
-    - name: 📦 Restore dependencies
-      run: dotnet restore MoviesApp.sln
+    - name: 🔧 Clean and restore dependencies
+      run: |
+        echo "=== Cleaning solution ==="
+        dotnet clean MoviesApp.sln
+        echo "=== Restoring dependencies ==="
+        dotnet restore MoviesApp.sln --verbosity normal
 
     - name: 🔨 Build solution
-      run: dotnet build MoviesApp.sln --no-restore --configuration Release
+      run: |
+        echo "=== Building solution in Release mode ==="
+        dotnet build MoviesApp.sln --no-restore --configuration Release --verbosity detailed
 
     - name: 🧪 Run unit tests
       run: |
@@ -79,7 +112,7 @@ jobs:
   build-api:
     needs: build-and-test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/master'
     
     steps:
     - name: 🔄 Checkout code
@@ -108,7 +141,7 @@ jobs:
   build-functions:
     needs: build-and-test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/master'
     
     steps:
     - name: 🔄 Checkout code
@@ -142,7 +175,7 @@ jobs:
   deploy-production:
     needs: [build-api, build-functions]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/master'
     environment: production
     
     steps:
