@@ -369,12 +369,23 @@ dotnet test --filter "FullyQualifiedName~Infrastructure.Tests"
 - **Storage Account**: Para archivos CSV y Azure Functions
 
 ### **CI/CD con GitHub Actions**
-El proyecto incluye un pipeline completo en `.github/workflows/azure-deploy.yml`:
+El proyecto incluye un pipeline de CI/CD en `.github/workflows/azure-deploy.yml`:
 
-- ✅ Build y Test automatizado
-- ✅ Deploy a producción en Azure
-- ✅ Deploy de Azure Functions
-- ✅ Health checks post-deploy
+**🔄 Funcionalidades Actuales:**
+- ✅ **Build y Test automatizado** - Compila y ejecuta pruebas unitarias
+- ✅ **Análisis de seguridad** - Escaneo de vulnerabilidades en dependencias
+- ✅ **Generación de artifacts** - Crea paquetes listos para deploy de API y Functions
+- ✅ **Validaciones exhaustivas** - Verificación de estructura de proyecto y archivos
+
+**📦 Artifacts Generados:**
+- `api-package` - Artifact listo para deploy del API REST
+- `functions-package` - Artifact listo para deploy de Azure Functions
+
+**🚀 Deploy Manual:**
+> Los artifacts se generan automáticamente pero el deploy a producción se realiza manualmente para mayor control sobre las versiones desplegadas.
+
+**💡 Para reactivar deploy automático:**
+El workflow puede configurarse fácilmente para deploy automático descomentando la sección correspondiente en el archivo YAML.
 
 ---
 
@@ -390,6 +401,7 @@ El proyecto incluye un pipeline completo en `.github/workflows/azure-deploy.yml`
 - [ ] **Búsqueda por Texto**: Filtros de texto en películas
 
 ### **🎯 Mejoras Técnicas**
+- [ ] **Deploy Automático**: Reactivar deploy automático a Azure con aprobaciones
 - [ ] **Caching**: Redis para mejorar performance
 - [ ] **Rate Limiting**: Protección contra abuso
 - [ ] **Logging Avanzado**: Application Insights integrado
