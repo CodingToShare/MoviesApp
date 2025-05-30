@@ -25,30 +25,77 @@ jobs:
 
     - name: 🔍 Verify project structure
       run: |
-        echo "=== Verifying project structure ==="
+        echo "=== COMPREHENSIVE PROJECT STRUCTURE VERIFICATION ==="
         echo "Current directory:"
         pwd
+        echo ""
         echo "Root files:"
         ls -la
         echo ""
-        echo "MoviesApp.Infrastructure structure:"
+        echo "=== CHECKING MOVIESAPP.INFRASTRUCTURE ==="
+        echo "Infrastructure folder structure:"
         ls -la MoviesApp.Infrastructure/
         echo ""
-        echo "Data folder contents:"
-        ls -la MoviesApp.Infrastructure/Data/ || echo "❌ Data folder missing!"
+        echo "=== CHECKING DATA FOLDER ==="
+        if [ -d "MoviesApp.Infrastructure/Data" ]; then
+          echo "✅ Data folder EXISTS"
+          echo "Data folder contents:"
+          ls -la MoviesApp.Infrastructure/Data/
+          echo ""
+          echo "Checking individual Data files:"
+          for file in MoviesDbContext.cs MoviesDbContextFactory.cs SeedData.cs DatabaseInitializer.cs; do
+            if [ -f "MoviesApp.Infrastructure/Data/$file" ]; then
+              echo "✅ $file - EXISTS"
+              echo "First 5 lines of $file:"
+              head -5 "MoviesApp.Infrastructure/Data/$file"
+              echo "Namespace check for $file:"
+              grep -n "namespace" "MoviesApp.Infrastructure/Data/$file" || echo "No namespace found"
+              echo "---"
+            else
+              echo "❌ $file - MISSING!"
+            fi
+          done
+        else
+          echo "❌ Data folder MISSING!"
+        fi
         echo ""
-        echo "Checking key files:"
-        ls -la MoviesApp.Infrastructure/Data/MoviesDbContext.cs || echo "❌ MoviesDbContext.cs missing!"
-        ls -la MoviesApp.Infrastructure/DependencyInjection.cs || echo "❌ DependencyInjection.cs missing!"
+        echo "=== CHECKING CONFIGURATIONS FOLDER ==="
+        if [ -d "MoviesApp.Infrastructure/Data/Configurations" ]; then
+          echo "✅ Configurations folder EXISTS"
+          ls -la MoviesApp.Infrastructure/Data/Configurations/
+        else
+          echo "❌ Configurations folder MISSING!"
+        fi
         echo ""
-        echo "Checking using statements in DependencyInjection.cs:"
-        head -10 MoviesApp.Infrastructure/DependencyInjection.cs || echo "❌ Cannot read DependencyInjection.cs"
+        echo "=== CHECKING OTHER FOLDERS ==="
+        for folder in Extensions Repositories Migrations Helpers; do
+          if [ -d "MoviesApp.Infrastructure/$folder" ]; then
+            echo "✅ $folder folder - EXISTS"
+            ls -la "MoviesApp.Infrastructure/$folder/"
+          else
+            echo "❌ $folder folder - MISSING!"
+          fi
+        done
         echo ""
-        echo "Checking .csproj files:"
-        ls -la MoviesApp.Infrastructure/MoviesApp.Infrastructure.csproj || echo "❌ .csproj missing!"
+        echo "=== CHECKING CSPROJ FILE ==="
+        if [ -f "MoviesApp.Infrastructure/MoviesApp.Infrastructure.csproj" ]; then
+          echo "✅ .csproj file - EXISTS"
+          echo "Content of .csproj file:"
+          cat MoviesApp.Infrastructure/MoviesApp.Infrastructure.csproj
+        else
+          echo "❌ .csproj file - MISSING!"
+        fi
         echo ""
-        echo "Checking AuthService.cs ValidateTokenAsync method (should not be async):"
-        grep -n "public.*ValidateTokenAsync" MoviesApp.Application/Services/AuthService.cs || echo "❌ Cannot find ValidateTokenAsync method"
+        echo "=== CHECKING PROBLEMATIC FILES ==="
+        echo "ServiceCollectionExtensions.cs using statements:"
+        head -10 MoviesApp.Infrastructure/Extensions/ServiceCollectionExtensions.cs || echo "❌ Cannot read ServiceCollectionExtensions.cs"
+        echo ""
+        echo "Migration file using statements:"
+        head -10 MoviesApp.Infrastructure/Migrations/20241228000000_InitialCreate.Designer.cs || echo "❌ Cannot read migration file"
+        echo ""
+        echo "=== FILE PERMISSIONS CHECK ==="
+        echo "Checking if files are readable:"
+        find MoviesApp.Infrastructure -name "*.cs" -type f -exec echo "File: {}" \; -exec ls -la {} \; | head -20
 
     - name: 🛠️ Setup .NET
       uses: actions/setup-dotnet@v4
@@ -62,9 +109,74 @@ jobs:
         echo "=== Restoring dependencies ==="
         dotnet restore MoviesApp.sln --verbosity normal
 
+    - name: 🔍 Pre-build diagnostic
+      run: |
+        echo "=== PRE-BUILD DIAGNOSTIC ==="
+        echo ""
+        echo "Testing if MoviesDbContext.cs contains correct namespace:"
+        if [ -f "MoviesApp.Infrastructure/Data/MoviesDbContext.cs" ]; then
+          echo "Content of MoviesDbContext.cs:"
+          cat MoviesApp.Infrastructure/Data/MoviesDbContext.cs
+          echo ""
+          echo "Checking for correct namespace declaration:"
+          grep -n "namespace MoviesApp.Infrastructure.Data" MoviesApp.Infrastructure/Data/MoviesDbContext.cs || echo "❌ Correct namespace not found!"
+        fi
+        echo ""
+        echo "Testing compilation of individual Infrastructure project:"
+        dotnet build MoviesApp.Infrastructure/MoviesApp.Infrastructure.csproj --no-restore --verbosity detailed || echo "❌ Infrastructure project failed to build individually"
+        echo ""
+        echo "Checking file encoding (should be UTF-8):"
+        file MoviesApp.Infrastructure/Data/MoviesDbContext.cs || echo "Cannot check file encoding"
+        echo ""
+        echo "Verifying using statements in problematic files:"
+        echo "--- ServiceCollectionExtensions.cs ---"
+        grep -n "using MoviesApp.Infrastructure.Data" MoviesApp.Infrastructure/Extensions/ServiceCollectionExtensions.cs || echo "❌ Using statement not found"
+        echo "--- MovieRepository.cs ---"
+        grep -n "using MoviesApp.Infrastructure.Data" MoviesApp.Infrastructure/Repositories/MovieRepository.cs || echo "❌ Using statement not found"
+        echo ""
+        echo "Checking if there are any hidden characters or BOM:"
+        hexdump -C MoviesApp.Infrastructure/Data/MoviesDbContext.cs | head -3
+        echo ""
+        echo "File sizes check:"
+        find MoviesApp.Infrastructure/Data -name "*.cs" -exec ls -la {} \;
+
+    - name: 🔄 Emergency migration regeneration (if needed)
+      run: |
+        echo "=== CHECKING IF MIGRATION REGENERATION IS NEEDED ==="
+        if ! dotnet build MoviesApp.Infrastructure/MoviesApp.Infrastructure.csproj --no-restore --verbosity minimal > /dev/null 2>&1; then
+          echo "❌ Infrastructure project build failed - attempting migration regeneration"
+          echo ""
+          echo "Installing EF Core tools:"
+          dotnet tool install --global dotnet-ef || echo "EF tools already installed"
+          echo ""
+          echo "Removing existing migrations:"
+          rm -rf MoviesApp.Infrastructure/Migrations/ || echo "No migrations to remove"
+          echo ""
+          echo "Regenerating migrations:"
+          cd MoviesApp.Infrastructure
+          dotnet ef migrations add InitialCreate --context MoviesDbContext --output-dir Migrations || echo "❌ Migration generation failed"
+          cd ..
+          echo ""
+          echo "Checking if regeneration helped:"
+          dotnet build MoviesApp.Infrastructure/MoviesApp.Infrastructure.csproj --no-restore --verbosity normal || echo "❌ Still failing after regeneration"
+        else
+          echo "✅ Infrastructure project builds successfully - no regeneration needed"
+        fi
+
     - name: 🔨 Build solution
       run: |
         echo "=== Building solution in Release mode ==="
+        echo "First, let's try building the Infrastructure project alone:"
+        dotnet build MoviesApp.Infrastructure/MoviesApp.Infrastructure.csproj --no-restore --configuration Release --verbosity detailed || {
+          echo "❌ Infrastructure project failed to build - showing detailed error info"
+          echo "Checking if the issue is with file references:"
+          ls -la MoviesApp.Infrastructure/Data/
+          echo "Checking namespace in MoviesDbContext:"
+          head -10 MoviesApp.Infrastructure/Data/MoviesDbContext.cs
+          exit 1
+        }
+        echo ""
+        echo "✅ Infrastructure project built successfully. Now building full solution:"
         dotnet build MoviesApp.sln --no-restore --configuration Release --verbosity detailed
 
     - name: 🧪 Run unit tests
