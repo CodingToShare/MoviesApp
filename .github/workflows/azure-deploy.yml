@@ -2,9 +2,7 @@ name: Build and Deploy to Azure
 
 on:
   push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
+    branches: ["master"]
 
 env:
   AZURE_WEBAPP_NAME: movieappsoftwarecolombia
