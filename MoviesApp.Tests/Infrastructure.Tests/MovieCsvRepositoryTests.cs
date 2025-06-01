@@ -15,6 +15,7 @@ public class MovieRepositoryTests : IDisposable
     private readonly MoviesDbContext _context;
     private readonly MovieRepository _repository;
     private readonly ILogger<MovieRepository> _logger;
+    private readonly LoggerFactory _loggerFactory;
 
     public MovieRepositoryTests()
     {
@@ -24,7 +25,8 @@ public class MovieRepositoryTests : IDisposable
             .Options;
 
         _context = new MoviesDbContext(options);
-        _logger = new LoggerFactory().CreateLogger<MovieRepository>();
+        _loggerFactory = new LoggerFactory();
+        _logger = _loggerFactory.CreateLogger<MovieRepository>();
         _repository = new MovieRepository(_context, _logger);
 
         // Asegurar que la base de datos esté creada
@@ -381,6 +383,7 @@ public class MovieRepositoryTests : IDisposable
     {
         _context.Database.EnsureDeleted();
         _context.Dispose();
+        _loggerFactory.Dispose();
     }
 
     #endregion
