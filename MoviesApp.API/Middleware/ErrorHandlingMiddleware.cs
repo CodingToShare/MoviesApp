@@ -2,6 +2,7 @@ using FluentValidation;
 using System.Net;
 using System.Text.Json;
 using System.Security;
+using System.Runtime.InteropServices;
 
 namespace MoviesApp.API.Middleware;
 
@@ -63,11 +64,6 @@ public class ErrorHandlingMiddleware
         catch (NotSupportedException ex)
         {
             _logger.LogError(ex, "Operación no soportada: {Message}", ex.Message);
-            await HandleExceptionAsync(context, ex);
-        }
-        catch (NullReferenceException ex)
-        {
-            _logger.LogError(ex, "Referencia nula: {Message}", ex.Message);
             await HandleExceptionAsync(context, ex);
         }
         catch (IndexOutOfRangeException ex)
@@ -140,9 +136,9 @@ public class ErrorHandlingMiddleware
             _logger.LogError(ex, "Funcionalidad no implementada: {Message}", ex.Message);
             await HandleExceptionAsync(context, ex);
         }
-        catch (Exception ex)
+        catch (SystemException ex)
         {
-            _logger.LogError(ex, "Error no manejado: {Message}", ex.Message);
+            _logger.LogError(ex, "Error del sistema: {Message}", ex.Message);
             await HandleExceptionAsync(context, ex);
         }
     }
@@ -220,12 +216,6 @@ public class ErrorHandlingMiddleware
                 Title = "Operación no soportada",
                 Status = (int)HttpStatusCode.NotImplemented,
                 Detail = "La operación solicitada no es soportada"
-            },
-            NullReferenceException => new ErrorResponse
-            {
-                Title = "Error interno",
-                Status = (int)HttpStatusCode.InternalServerError,
-                Detail = "Se produjo un error interno del servidor"
             },
             IndexOutOfRangeException => new ErrorResponse
             {
@@ -310,6 +300,12 @@ public class ErrorHandlingMiddleware
                 Title = "Funcionalidad no implementada",
                 Status = (int)HttpStatusCode.NotImplemented,
                 Detail = "La funcionalidad solicitada aún no está implementada"
+            },
+            SystemException => new ErrorResponse
+            {
+                Title = "Error del sistema",
+                Status = (int)HttpStatusCode.InternalServerError,
+                Detail = "Se produjo un error interno del sistema"
             },
             _ => new ErrorResponse
             {
