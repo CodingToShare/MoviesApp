@@ -80,11 +80,32 @@ public class CsvMovieHelper
 
             return result;
         }
-        catch (Exception ex)
+        catch (FileNotFoundException ex)
         {
-            _logger.LogError(ex, "Error al validar archivo CSV: {FilePath}", filePath);
+            _logger.LogError(ex, "Archivo CSV no encontrado: {FilePath}", filePath);
             result.IsValid = false;
-            result.Errors.Add($"Error al procesar el archivo: {ex.Message}");
+            result.Errors.Add($"Archivo no encontrado: {ex.Message}");
+            return result;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogError(ex, "Error de permisos al validar archivo CSV: {FilePath}", filePath);
+            result.IsValid = false;
+            result.Errors.Add($"Error de permisos: {ex.Message}");
+            return result;
+        }
+        catch (IOException ex)
+        {
+            _logger.LogError(ex, "Error de E/S al validar archivo CSV: {FilePath}", filePath);
+            result.IsValid = false;
+            result.Errors.Add($"Error de E/S: {ex.Message}");
+            return result;
+        }
+        catch (CsvHelperException ex)
+        {
+            _logger.LogError(ex, "Error de formato CSV al validar archivo: {FilePath}", filePath);
+            result.IsValid = false;
+            result.Errors.Add($"Error de formato CSV: {ex.Message}");
             return result;
         }
     }
@@ -118,9 +139,24 @@ public class CsvMovieHelper
 
             _logger.LogInformation("Exportación CSV completada exitosamente");
         }
-        catch (Exception ex)
+        catch (UnauthorizedAccessException ex)
         {
-            _logger.LogError(ex, "Error al exportar a CSV: {FilePath}", filePath);
+            _logger.LogError(ex, "Error de permisos al exportar a CSV: {FilePath}", filePath);
+            throw;
+        }
+        catch (IOException ex)
+        {
+            _logger.LogError(ex, "Error de E/S al exportar a CSV: {FilePath}", filePath);
+            throw;
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogError(ex, "Argumento inválido al exportar a CSV: {FilePath}", filePath);
+            throw;
+        }
+        catch (CsvHelperException ex)
+        {
+            _logger.LogError(ex, "Error de CsvHelper al exportar a CSV: {FilePath}", filePath);
             throw;
         }
     }
@@ -188,9 +224,29 @@ public class CsvMovieHelper
                 _logger.LogInformation("Estadísticas CSV calculadas: {TotalRecords} registros", stats.TotalRecords);
                 return stats;
             }
-            catch (Exception ex)
+            catch (FileNotFoundException ex)
             {
-                _logger.LogError(ex, "Error al calcular estadísticas CSV: {FilePath}", filePath);
+                _logger.LogError(ex, "Archivo CSV no encontrado para estadísticas: {FilePath}", filePath);
+                throw;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogError(ex, "Error de permisos al calcular estadísticas CSV: {FilePath}", filePath);
+                throw;
+            }
+            catch (IOException ex)
+            {
+                _logger.LogError(ex, "Error de E/S al calcular estadísticas CSV: {FilePath}", filePath);
+                throw;
+            }
+            catch (CsvHelperException ex)
+            {
+                _logger.LogError(ex, "Error de formato CSV al calcular estadísticas: {FilePath}", filePath);
+                throw;
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogError(ex, "Argumento inválido al calcular estadísticas CSV: {FilePath}", filePath);
                 throw;
             }
         });

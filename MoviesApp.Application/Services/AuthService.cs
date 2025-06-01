@@ -46,18 +46,18 @@ public class AuthService : IAuthService
     {
         try
         {
-            // Validar input para prevenir ataques de inyección
-            if (string.IsNullOrWhiteSpace(loginRequest.Username) || string.IsNullOrWhiteSpace(loginRequest.Password))
+            // Validar entrada
+            if (loginRequest == null)
             {
-                _logger.LogWarning("Intento de login con credenciales vacías desde IP desconocida");
-                return null;
+                throw new ArgumentNullException(nameof(loginRequest));
             }
 
-            // Sanitizar username para prevenir ataques
-            var sanitizedUsername = SecurityHelper.SanitizeUserInput(loginRequest.Username);
+            // Sanitizar entrada para prevenir ataques de inyección en logs
+            var sanitizedUsername = SecurityHelper.SanitizeUserInput(loginRequest.Username ?? "");
+
             if (string.IsNullOrWhiteSpace(sanitizedUsername))
             {
-                _logger.LogWarning("Username contiene caracteres no válidos: {Username}", SecurityHelper.SanitizeForLogging(sanitizedUsername));
+                _logger.LogWarning("Intento de login con username vacío o nulo");
                 return null;
             }
 
@@ -107,9 +107,24 @@ public class AuthService : IAuthService
                 User = _mapper.Map<UserInfoDto>(user)
             };
         }
-        catch (Exception ex)
+        catch (ArgumentNullException ex)
         {
-            _logger.LogError(ex, "Error durante el login del usuario: {Username}", SecurityHelper.SanitizeForLogging(loginRequest.Username));
+            _logger.LogError(ex, "Argumento nulo en el login");
+            throw;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Operación inválida durante el login del usuario: {Username}", SecurityHelper.SanitizeForLogging(loginRequest?.Username ?? "unknown"));
+            throw;
+        }
+        catch (TaskCanceledException ex)
+        {
+            _logger.LogWarning(ex, "Login cancelado para usuario: {Username}", SecurityHelper.SanitizeForLogging(loginRequest?.Username ?? "unknown"));
+            throw;
+        }
+        catch (TimeoutException ex)
+        {
+            _logger.LogError(ex, "Timeout durante el login del usuario: {Username}", SecurityHelper.SanitizeForLogging(loginRequest?.Username ?? "unknown"));
             throw;
         }
     }
@@ -155,9 +170,24 @@ public class AuthService : IAuthService
                 User = _mapper.Map<UserInfoDto>(user)
             };
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
         {
-            _logger.LogError(ex, "Error durante el registro del usuario: {Username}", SecurityHelper.SanitizeForLogging(registerRequest.Username));
+            _logger.LogError(ex, "Error de validación durante el registro del usuario: {Username}", SecurityHelper.SanitizeForLogging(registerRequest?.Username ?? "unknown"));
+            throw;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Operación inválida durante el registro del usuario: {Username}", SecurityHelper.SanitizeForLogging(registerRequest?.Username ?? "unknown"));
+            throw;
+        }
+        catch (TaskCanceledException ex)
+        {
+            _logger.LogWarning(ex, "Registro cancelado para usuario: {Username}", SecurityHelper.SanitizeForLogging(registerRequest?.Username ?? "unknown"));
+            throw;
+        }
+        catch (TimeoutException ex)
+        {
+            _logger.LogError(ex, "Timeout durante el registro del usuario: {Username}", SecurityHelper.SanitizeForLogging(registerRequest?.Username ?? "unknown"));
             throw;
         }
     }
@@ -181,8 +211,19 @@ public class AuthService : IAuthService
 
             return Task.FromResult(true);
         }
-        catch
+        catch (SecurityTokenException)
         {
+            // Token inválido, expirado o mal formado
+            return Task.FromResult(false);
+        }
+        catch (ArgumentException)
+        {
+            // Argumentos inválidos (token nulo, vacío, etc.)
+            return Task.FromResult(false);
+        }
+        catch (FormatException)
+        {
+            // Token mal formateado
             return Task.FromResult(false);
         }
     }
@@ -194,9 +235,24 @@ public class AuthService : IAuthService
             var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
             return user != null ? _mapper.Map<UserInfoDto>(user) : null;
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
+        {
+            _logger.LogError(ex, "ID de usuario inválido: {UserId}", userId);
+            throw;
+        }
+        catch (InvalidOperationException ex)
         {
             _logger.LogError(ex, "Error al obtener información del usuario: {UserId}", userId);
+            throw;
+        }
+        catch (TaskCanceledException ex)
+        {
+            _logger.LogWarning(ex, "Operación cancelada al obtener usuario: {UserId}", userId);
+            throw;
+        }
+        catch (TimeoutException ex)
+        {
+            _logger.LogError(ex, "Timeout al obtener información del usuario: {UserId}", userId);
             throw;
         }
     }
@@ -252,9 +308,19 @@ public class AuthService : IAuthService
         {
             return BCrypt.Net.BCrypt.Verify(password, hash);
         }
-        catch
+        catch (ArgumentException)
         {
-            // En caso de error en la verificación, devolver false por seguridad
+            // Argumentos inválidos (password nulo, hash inválido, etc.)
+            return false;
+        }
+        catch (FormatException)
+        {
+            // Hash mal formateado
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            // Error interno de BCrypt
             return false;
         }
     }

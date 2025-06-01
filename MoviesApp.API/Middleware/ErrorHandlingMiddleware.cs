@@ -24,6 +24,46 @@ public class ErrorHandlingMiddleware
         {
             await _next(context);
         }
+        catch (ValidationException ex)
+        {
+            _logger.LogWarning(ex, "Error de validación: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Argumento inválido: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Operación inválida: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Acceso no autorizado: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Recurso no encontrado: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
+        catch (TimeoutException ex)
+        {
+            _logger.LogError(ex, "Timeout en la operación: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
+        catch (TaskCanceledException ex)
+        {
+            _logger.LogWarning(ex, "Operación cancelada: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
+        catch (NotSupportedException ex)
+        {
+            _logger.LogError(ex, "Operación no soportada: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error no manejado: {Message}", ex.Message);
@@ -31,7 +71,7 @@ public class ErrorHandlingMiddleware
         }
     }
 
-    private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
+    private async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
         var response = context.Response;
         
@@ -114,9 +154,16 @@ public class ErrorHandlingMiddleware
             var jsonResponse = JsonSerializer.Serialize(errorResponse, jsonOptions);
             await response.WriteAsync(jsonResponse);
         }
-        catch
+        catch (JsonException ex)
         {
+            _logger.LogError(ex, "Error serializando respuesta de error a JSON");
             // Fallback si hay error serializando
+            await response.WriteAsync("{\"title\":\"Error interno\",\"status\":500}");
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Error escribiendo respuesta al stream HTTP");
+            // Fallback para errores de escritura
             await response.WriteAsync("{\"title\":\"Error interno\",\"status\":500}");
         }
     }

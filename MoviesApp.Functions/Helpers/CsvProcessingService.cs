@@ -48,11 +48,23 @@ public class CsvProcessingService
                 {
                     await ProcessSingleRecordAsync(record, result);
                 }
-                catch (Exception ex)
+                catch (InvalidOperationException ex)
                 {
-                    result.Errors.Add($"Error procesando registro {record.ToDescription()}: {ex.Message}");
+                    result.Errors.Add($"Error de operación procesando registro {record.ToDescription()}: {ex.Message}");
                     result.ErrorCount++;
-                    _logger.LogError(ex, "Error procesando registro {RecordDescription}", record.ToDescription());
+                    _logger.LogError(ex, "Error de operación procesando registro {RecordDescription}", record.ToDescription());
+                }
+                catch (ArgumentException ex)
+                {
+                    result.Errors.Add($"Error de argumento procesando registro {record.ToDescription()}: {ex.Message}");
+                    result.ErrorCount++;
+                    _logger.LogError(ex, "Error de argumento procesando registro {RecordDescription}", record.ToDescription());
+                }
+                catch (FormatException ex)
+                {
+                    result.Errors.Add($"Error de formato procesando registro {record.ToDescription()}: {ex.Message}");
+                    result.ErrorCount++;
+                    _logger.LogError(ex, "Error de formato procesando registro {RecordDescription}", record.ToDescription());
                 }
             }
 
@@ -62,10 +74,25 @@ public class CsvProcessingService
                 result.CreatedCount, result.UpdatedCount, result.ErrorCount);
 
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            result.Errors.Add($"Error general procesando archivo: {ex.Message}");
-            _logger.LogError(ex, "Error general procesando archivo {FileName}", fileName);
+            result.Errors.Add($"Error de operación procesando archivo: {ex.Message}");
+            _logger.LogError(ex, "Error de operación procesando archivo {FileName}", fileName);
+        }
+        catch (ArgumentException ex)
+        {
+            result.Errors.Add($"Error de argumento procesando archivo: {ex.Message}");
+            _logger.LogError(ex, "Error de argumento procesando archivo {FileName}", fileName);
+        }
+        catch (IOException ex)
+        {
+            result.Errors.Add($"Error de E/S procesando archivo: {ex.Message}");
+            _logger.LogError(ex, "Error de E/S procesando archivo {FileName}", fileName);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            result.Errors.Add($"Error de permisos procesando archivo: {ex.Message}");
+            _logger.LogError(ex, "Error de permisos procesando archivo {FileName}", fileName);
         }
 
         return result;
@@ -140,9 +167,23 @@ public class CsvProcessingService
                 _logger.LogDebug("✅ Película creada: {MovieDescription}", record.ToDescription());
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            var errorMessage = $"Error procesando registro {record.ToDescription()}: {ex.Message}";
+            var errorMessage = $"Error de operación procesando registro {record.ToDescription()}: {ex.Message}";
+            result.Errors.Add(errorMessage);
+            result.ErrorCount++;
+            _logger.LogError(ex, "💥 {ErrorMessage}", errorMessage);
+        }
+        catch (ArgumentException ex)
+        {
+            var errorMessage = $"Error de argumento procesando registro {record.ToDescription()}: {ex.Message}";
+            result.Errors.Add(errorMessage);
+            result.ErrorCount++;
+            _logger.LogError(ex, "💥 {ErrorMessage}", errorMessage);
+        }
+        catch (FormatException ex)
+        {
+            var errorMessage = $"Error de formato procesando registro {record.ToDescription()}: {ex.Message}";
             result.Errors.Add(errorMessage);
             result.ErrorCount++;
             _logger.LogError(ex, "💥 {ErrorMessage}", errorMessage);
@@ -176,10 +217,20 @@ public class CsvProcessingService
             _logger.LogInformation("📖 Se leyeron {Count} registros del CSV", records.Count);
             return records;
         }
-        catch (Exception ex)
+        catch (CsvHelperException ex)
         {
-            _logger.LogError(ex, "💥 Error leyendo archivo CSV");
-            throw new InvalidOperationException($"Error leyendo archivo CSV: {ex.Message}", ex);
+            _logger.LogError(ex, "💥 Error de CsvHelper leyendo archivo CSV");
+            throw new InvalidOperationException($"Error de formato CSV: {ex.Message}", ex);
+        }
+        catch (IOException ex)
+        {
+            _logger.LogError(ex, "💥 Error de E/S leyendo archivo CSV");
+            throw new InvalidOperationException($"Error de E/S leyendo archivo CSV: {ex.Message}", ex);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogError(ex, "💥 Error de permisos leyendo archivo CSV");
+            throw new InvalidOperationException($"Error de permisos leyendo archivo CSV: {ex.Message}", ex);
         }
     }
 
@@ -258,11 +309,23 @@ public class CsvProcessingService
                 result.DuplicatesRemoved, result.ScoresCorrected, result.YearsCorrected);
 
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             result.Success = false;
             result.ErrorMessage = ex.Message;
-            _logger.LogError(ex, "Error durante la limpieza de datos");
+            _logger.LogError(ex, "Error de operación durante la limpieza de datos");
+        }
+        catch (ArgumentException ex)
+        {
+            result.Success = false;
+            result.ErrorMessage = ex.Message;
+            _logger.LogError(ex, "Error de argumento durante la limpieza de datos");
+        }
+        catch (TimeoutException ex)
+        {
+            result.Success = false;
+            result.ErrorMessage = ex.Message;
+            _logger.LogError(ex, "Timeout durante la limpieza de datos");
         }
 
         return result;

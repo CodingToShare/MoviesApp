@@ -9,6 +9,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Data.SqlClient;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -218,10 +220,28 @@ try
                 logger.LogInformation("✅ Base de datos actualizada - No hay migraciones pendientes");
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-            logger.LogError(ex, "❌ Error al ejecutar migraciones automáticamente");
+            logger.LogError(ex, "❌ Error de configuración al ejecutar migraciones automáticamente");
+            throw; // Re-lanzar la excepción para que la aplicación no inicie con problemas de BD
+        }
+        catch (SqlException ex)
+        {
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            logger.LogError(ex, "❌ Error de base de datos al ejecutar migraciones automáticamente");
+            throw; // Re-lanzar la excepción para que la aplicación no inicie con problemas de BD
+        }
+        catch (TimeoutException ex)
+        {
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            logger.LogError(ex, "❌ Timeout al ejecutar migraciones automáticamente");
+            throw; // Re-lanzar la excepción para que la aplicación no inicie con problemas de BD
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            logger.LogError(ex, "❌ Error de permisos al ejecutar migraciones automáticamente");
             throw; // Re-lanzar la excepción para que la aplicación no inicie con problemas de BD
         }
     }
@@ -233,10 +253,20 @@ try
         {
             await SeedData.InitializeAsync(scope.ServiceProvider);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-            logger.LogError(ex, "Error al inicializar datos de prueba");
+            logger.LogError(ex, "Error de configuración al inicializar datos de prueba");
+        }
+        catch (SqlException ex)
+        {
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            logger.LogError(ex, "Error de base de datos al inicializar datos de prueba");
+        }
+        catch (TimeoutException ex)
+        {
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            logger.LogError(ex, "Timeout al inicializar datos de prueba");
         }
     }
 
@@ -265,10 +295,30 @@ try
 
     app.Run();
 }
+catch (HostAbortedException ex)
+{
+    // Host fue abortado intencionalmente - no es un error crítico
+    var logger = app?.Services?.GetService<ILogger<Program>>();
+    logger?.LogInformation(ex, "Aplicación abortada intencionalmente");
+}
+catch (InvalidOperationException ex)
+{
+    // Errores de configuración durante el startup
+    var logger = app?.Services?.GetService<ILogger<Program>>();
+    logger?.LogCritical(ex, "Error de configuración durante el inicio de la aplicación");
+    throw;
+}
+catch (ArgumentException ex)
+{
+    // Errores de argumentos durante el startup
+    var logger = app?.Services?.GetService<ILogger<Program>>();
+    logger?.LogCritical(ex, "Error de argumentos durante el inicio de la aplicación");
+    throw;
+}
 catch (Exception ex)
 {
     // Log de errores críticos durante el startup
     var logger = app?.Services?.GetService<ILogger<Program>>();
-    logger?.LogCritical(ex, "Error crítico durante el inicio de la aplicación");
+    logger?.LogCritical(ex, "Error crítico no manejado durante el inicio de la aplicación");
     throw;
 }

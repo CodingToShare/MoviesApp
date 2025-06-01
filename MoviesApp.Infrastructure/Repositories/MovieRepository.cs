@@ -368,9 +368,19 @@ public class MovieRepository : IMovieRepository
         {
             return await _context.Movies.CountAsync(cancellationToken);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            _logger.LogError(ex, "Error al obtener conteo de películas");
+            _logger.LogError(ex, "Error de operación al obtener conteo de películas");
+            throw;
+        }
+        catch (TaskCanceledException ex)
+        {
+            _logger.LogWarning(ex, "Operación cancelada al obtener conteo de películas");
+            throw;
+        }
+        catch (TimeoutException ex)
+        {
+            _logger.LogError(ex, "Timeout al obtener conteo de películas");
             throw;
         }
     }
@@ -396,9 +406,24 @@ public class MovieRepository : IMovieRepository
             using var fileStream = new FileStream(csvFilePath, FileMode.Open, FileAccess.Read);
             return await LoadFromCsvStreamAsync(fileStream, cancellationToken);
         }
-        catch (Exception ex)
+        catch (FileNotFoundException ex)
         {
-            _logger.LogError(ex, "Error al cargar películas desde CSV: {FilePath}", csvFilePath);
+            _logger.LogError(ex, "Archivo CSV no encontrado: {FilePath}", csvFilePath);
+            throw;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogError(ex, "Error de permisos al cargar películas desde CSV: {FilePath}", csvFilePath);
+            throw;
+        }
+        catch (IOException ex)
+        {
+            _logger.LogError(ex, "Error de E/S al cargar películas desde CSV: {FilePath}", csvFilePath);
+            throw;
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogError(ex, "Argumento inválido al cargar películas desde CSV: {FilePath}", csvFilePath);
             throw;
         }
     }
@@ -447,18 +472,41 @@ public class MovieRepository : IMovieRepository
                         _logger.LogWarning("Película inválida en CSV: ID={Id}, Film={Film}", record.Id, record.Film);
                     }
                 }
-                catch (Exception ex)
+                catch (ArgumentException ex)
                 {
-                    _logger.LogWarning(ex, "Error al procesar registro CSV: ID={Id}, Film={Film}", record.Id, record.Film);
+                    _logger.LogWarning(ex, "Error de argumento al procesar registro CSV: ID={Id}, Film={Film}", record.Id, record.Film);
+                }
+                catch (FormatException ex)
+                {
+                    _logger.LogWarning(ex, "Error de formato al procesar registro CSV: ID={Id}, Film={Film}", record.Id, record.Film);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    _logger.LogWarning(ex, "Error de operación al procesar registro CSV: ID={Id}, Film={Film}", record.Id, record.Film);
                 }
             }
 
             _logger.LogInformation("Se cargaron {Count} películas válidas desde CSV", movies.Count);
             return Task.FromResult<IEnumerable<Movie>>(movies);
         }
-        catch (Exception ex)
+        catch (CsvHelperException ex)
         {
-            _logger.LogError(ex, "Error al cargar películas desde stream CSV");
+            _logger.LogError(ex, "Error de CsvHelper al cargar películas desde stream CSV");
+            throw;
+        }
+        catch (IOException ex)
+        {
+            _logger.LogError(ex, "Error de E/S al cargar películas desde stream CSV");
+            throw;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogError(ex, "Error de permisos al cargar películas desde stream CSV");
+            throw;
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogError(ex, "Argumento inválido al cargar películas desde stream CSV");
             throw;
         }
     }

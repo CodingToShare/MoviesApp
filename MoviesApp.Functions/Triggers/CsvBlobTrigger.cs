@@ -82,10 +82,46 @@ public class CsvBlobTrigger
             await SaveProcessingLogAsync(result, startTime, uri.ToString());
 
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
         {
             var duration = DateTime.UtcNow - startTime;
-            _logger.LogError(ex, "💥 ERROR - Fallo procesando archivo CSV: {FileName} (Duración: {Duration}ms)",
+            _logger.LogError(ex, "💥 ERROR - Argumento inválido procesando archivo CSV: {FileName} (Duración: {Duration}ms)",
+                name, duration.TotalMilliseconds);
+
+            // Opcional: Enviar alerta o guardar error en tabla de logs
+            await SaveErrorLogAsync(name, ex.Message, uri.ToString());
+        }
+        catch (InvalidOperationException ex)
+        {
+            var duration = DateTime.UtcNow - startTime;
+            _logger.LogError(ex, "💥 ERROR - Operación inválida procesando archivo CSV: {FileName} (Duración: {Duration}ms)",
+                name, duration.TotalMilliseconds);
+
+            // Opcional: Enviar alerta o guardar error en tabla de logs
+            await SaveErrorLogAsync(name, ex.Message, uri.ToString());
+        }
+        catch (IOException ex)
+        {
+            var duration = DateTime.UtcNow - startTime;
+            _logger.LogError(ex, "💥 ERROR - Error de E/S procesando archivo CSV: {FileName} (Duración: {Duration}ms)",
+                name, duration.TotalMilliseconds);
+
+            // Opcional: Enviar alerta o guardar error en tabla de logs
+            await SaveErrorLogAsync(name, ex.Message, uri.ToString());
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            var duration = DateTime.UtcNow - startTime;
+            _logger.LogError(ex, "💥 ERROR - Error de permisos procesando archivo CSV: {FileName} (Duración: {Duration}ms)",
+                name, duration.TotalMilliseconds);
+
+            // Opcional: Enviar alerta o guardar error en tabla de logs
+            await SaveErrorLogAsync(name, ex.Message, uri.ToString());
+        }
+        catch (TimeoutException ex)
+        {
+            var duration = DateTime.UtcNow - startTime;
+            _logger.LogError(ex, "💥 ERROR - Timeout procesando archivo CSV: {FileName} (Duración: {Duration}ms)",
                 name, duration.TotalMilliseconds);
 
             // Opcional: Enviar alerta o guardar error en tabla de logs
@@ -155,9 +191,19 @@ public class CsvBlobTrigger
             _logger.LogDebug("💾 Log de procesamiento guardado para {FileName}", result.FileName);
             return Task.CompletedTask;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "⚠️ No se pudo guardar el log de procesamiento para {FileName}", result.FileName);
+            _logger.LogWarning(ex, "⚠️ Error de operación - No se pudo guardar el log de procesamiento para {FileName}", result.FileName);
+            return Task.CompletedTask;
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "⚠️ Error de argumento - No se pudo guardar el log de procesamiento para {FileName}", result.FileName);
+            return Task.CompletedTask;
+        }
+        catch (TimeoutException ex)
+        {
+            _logger.LogWarning(ex, "⚠️ Timeout - No se pudo guardar el log de procesamiento para {FileName}", result.FileName);
             return Task.CompletedTask;
         }
     }
@@ -173,9 +219,19 @@ public class CsvBlobTrigger
             _logger.LogDebug("💾 Log de error guardado para {FileName}", fileName);
             return Task.CompletedTask;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "⚠️ No se pudo guardar el log de error para {FileName}", fileName);
+            _logger.LogWarning(ex, "⚠️ Error de operación - No se pudo guardar el log de error para {FileName}", fileName);
+            return Task.CompletedTask;
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "⚠️ Error de argumento - No se pudo guardar el log de error para {FileName}", fileName);
+            return Task.CompletedTask;
+        }
+        catch (TimeoutException ex)
+        {
+            _logger.LogWarning(ex, "⚠️ Timeout - No se pudo guardar el log de error para {FileName}", fileName);
             return Task.CompletedTask;
         }
     }
