@@ -16,7 +16,6 @@ out/
 *.sln.docstates
 
 # Visual Studio Code files
-.vscode/
 
 # NuGet Packages
 *.nupkg

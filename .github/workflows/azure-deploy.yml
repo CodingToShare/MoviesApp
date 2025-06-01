@@ -12,7 +12,7 @@ env:
   AZURE_RESOURCE_GROUP: moviesapp-rg
   AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   # Disable CodeQL temporarily while fixing build issues
-  ENABLE_CODEQL: false
+  ENABLE_CODEQL: true
 
 jobs:
   # ===============================
