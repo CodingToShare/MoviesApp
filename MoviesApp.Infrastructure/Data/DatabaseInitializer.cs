@@ -25,9 +25,24 @@ public static class DatabaseInitializer
             
             logger.LogInformation("Base de datos inicializada correctamente");
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            logger.LogError(ex, "Error al inicializar la base de datos");
+            logger.LogError(ex, "Error de operación al inicializar la base de datos");
+            throw;
+        }
+        catch (ArgumentException ex)
+        {
+            logger.LogError(ex, "Error de argumento al inicializar la base de datos");
+            throw;
+        }
+        catch (TimeoutException ex)
+        {
+            logger.LogError(ex, "Timeout al inicializar la base de datos");
+            throw;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogError(ex, "Error de permisos al inicializar la base de datos");
             throw;
         }
     }
@@ -56,9 +71,24 @@ public static class DatabaseInitializer
                 logger.LogInformation("No hay migraciones pendientes");
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            logger.LogError(ex, "Error al aplicar migraciones");
+            logger.LogError(ex, "Error de operación al aplicar migraciones");
+            throw;
+        }
+        catch (ArgumentException ex)
+        {
+            logger.LogError(ex, "Error de argumento al aplicar migraciones");
+            throw;
+        }
+        catch (TimeoutException ex)
+        {
+            logger.LogError(ex, "Timeout al aplicar migraciones");
+            throw;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogError(ex, "Error de permisos al aplicar migraciones");
             throw;
         }
     }
@@ -87,9 +117,24 @@ public static class DatabaseInitializer
             
             return canConnect;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            logger.LogError(ex, "Error al verificar la conexión a la base de datos");
+            logger.LogError(ex, "Error de operación al verificar la conexión a la base de datos");
+            return false;
+        }
+        catch (ArgumentException ex)
+        {
+            logger.LogError(ex, "Error de argumento al verificar la conexión a la base de datos");
+            return false;
+        }
+        catch (TimeoutException ex)
+        {
+            logger.LogError(ex, "Timeout al verificar la conexión a la base de datos");
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogError(ex, "Error de permisos al verificar la conexión a la base de datos");
             return false;
         }
     }

@@ -68,13 +68,45 @@ public class CsvDailyCleanup
                 duration.TotalMilliseconds);
 
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             var duration = DateTime.UtcNow - startTime;
-            _logger.LogError(ex, "💥 ERROR - Fallo en la limpieza diaria (Duración: {Duration}ms)", 
+            _logger.LogError(ex, "💥 ERROR - Error de operación en la limpieza diaria (Duración: {Duration}ms)", 
                 duration.TotalMilliseconds);
             
             // En producción, aquí podrías enviar una alerta
+            await SendCleanupErrorAlert(ex);
+        }
+        catch (ArgumentException ex)
+        {
+            var duration = DateTime.UtcNow - startTime;
+            _logger.LogError(ex, "💥 ERROR - Error de argumento en la limpieza diaria (Duración: {Duration}ms)", 
+                duration.TotalMilliseconds);
+            
+            await SendCleanupErrorAlert(ex);
+        }
+        catch (TimeoutException ex)
+        {
+            var duration = DateTime.UtcNow - startTime;
+            _logger.LogError(ex, "💥 ERROR - Timeout en la limpieza diaria (Duración: {Duration}ms)", 
+                duration.TotalMilliseconds);
+            
+            await SendCleanupErrorAlert(ex);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            var duration = DateTime.UtcNow - startTime;
+            _logger.LogError(ex, "💥 ERROR - Error de permisos en la limpieza diaria (Duración: {Duration}ms)", 
+                duration.TotalMilliseconds);
+            
+            await SendCleanupErrorAlert(ex);
+        }
+        catch (TaskCanceledException ex)
+        {
+            var duration = DateTime.UtcNow - startTime;
+            _logger.LogError(ex, "💥 ERROR - Operación cancelada en la limpieza diaria (Duración: {Duration}ms)", 
+                duration.TotalMilliseconds);
+            
             await SendCleanupErrorAlert(ex);
         }
     }
@@ -114,9 +146,17 @@ public class CsvDailyCleanup
                 .FirstOrDefaultAsync() ?? "N/A";
 
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            _logger.LogError(ex, "Error generando estadísticas de la base de datos");
+            _logger.LogError(ex, "Error de operación generando estadísticas de la base de datos");
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogError(ex, "Error de argumento generando estadísticas de la base de datos");
+        }
+        catch (TimeoutException ex)
+        {
+            _logger.LogError(ex, "Timeout generando estadísticas de la base de datos");
         }
 
         return stats;
@@ -165,9 +205,25 @@ public class CsvDailyCleanup
                 fileName, movies.Count);
 
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            _logger.LogError(ex, "Error creando respaldo de datos");
+            _logger.LogError(ex, "Error de operación creando respaldo de datos");
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogError(ex, "Error de argumento creando respaldo de datos");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogError(ex, "Error de permisos creando respaldo de datos");
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "Error de serialización JSON creando respaldo de datos");
+        }
+        catch (TimeoutException ex)
+        {
+            _logger.LogError(ex, "Timeout creando respaldo de datos");
         }
     }
 
@@ -199,9 +255,21 @@ public class CsvDailyCleanup
             await CleanupBackupsAsync(blobServiceClient, backupContainerName);
 
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            _logger.LogError(ex, "Error limpiando archivos antiguos del blob storage");
+            _logger.LogError(ex, "Error de operación limpiando archivos antiguos del blob storage");
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogError(ex, "Error de argumento limpiando archivos antiguos del blob storage");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogError(ex, "Error de permisos limpiando archivos antiguos del blob storage");
+        }
+        catch (TimeoutException ex)
+        {
+            _logger.LogError(ex, "Timeout limpiando archivos antiguos del blob storage");
         }
     }
 
@@ -235,9 +303,21 @@ public class CsvDailyCleanup
             }
 
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            _logger.LogError(ex, "Error limpiando contenedor {ContainerName}", containerName);
+            _logger.LogError(ex, "Error de operación limpiando contenedor {ContainerName}", containerName);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogError(ex, "Error de argumento limpiando contenedor {ContainerName}", containerName);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogError(ex, "Error de permisos limpiando contenedor {ContainerName}", containerName);
+        }
+        catch (TimeoutException ex)
+        {
+            _logger.LogError(ex, "Timeout limpiando contenedor {ContainerName}", containerName);
         }
     }
 
@@ -278,9 +358,21 @@ public class CsvDailyCleanup
             }
 
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            _logger.LogError(ex, "Error limpiando respaldos antiguos");
+            _logger.LogError(ex, "Error de operación limpiando respaldos antiguos");
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogError(ex, "Error de argumento limpiando respaldos antiguos");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogError(ex, "Error de permisos limpiando respaldos antiguos");
+        }
+        catch (TimeoutException ex)
+        {
+            _logger.LogError(ex, "Timeout limpiando respaldos antiguos");
         }
     }
 
