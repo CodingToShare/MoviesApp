@@ -54,6 +54,19 @@ public class AuthController : ControllerBase
     {
         try
         {
+            // Verificar que el request no sea null antes de procesar
+            if (loginRequest == null)
+            {
+                _logger.LogWarning("Request de login nulo recibido");
+                return BadRequest(new
+                {
+                    title = "Datos inválidos",
+                    status = 400,
+                    detail = "El cuerpo de la solicitud no puede estar vacío",
+                    timestamp = DateTime.UtcNow
+                });
+            }
+
             // Usar FluentValidation para validación robusta - previene user-controlled bypass
             var validationResult = await _loginValidator.ValidateAsync(loginRequest, cancellationToken);
             if (!validationResult.IsValid)
@@ -124,6 +137,19 @@ public class AuthController : ControllerBase
     {
         try
         {
+            // Verificar que el request no sea null antes de procesar
+            if (registerRequest == null)
+            {
+                _logger.LogWarning("Request de registro nulo recibido");
+                return BadRequest(new
+                {
+                    title = "Datos inválidos",
+                    status = 400,
+                    detail = "El cuerpo de la solicitud no puede estar vacío",
+                    timestamp = DateTime.UtcNow
+                });
+            }
+
             // Usar FluentValidation para validación robusta - previene user-controlled bypass
             var validationResult = await _registerValidator.ValidateAsync(registerRequest, cancellationToken);
             if (!validationResult.IsValid)
