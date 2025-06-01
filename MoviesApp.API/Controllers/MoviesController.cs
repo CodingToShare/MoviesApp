@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MoviesApp.Application.DTOs;
+using MoviesApp.Application.Helpers;
 using MoviesApp.Application.Interfaces;
 using FluentValidation;
 using System.Net;
@@ -75,7 +76,8 @@ public class MoviesController : ControllerBase
                 });
             }
 
-            _logger.LogInformation("Película obtenida exitosamente: {Film} (ID: {Id})", movie.Film, id);
+            _logger.LogInformation("Película obtenida exitosamente: {Film} (ID: {Id})", 
+                SecurityHelper.SanitizeForLogging(movie.Film), id);
             return Ok(movie);
         }
         catch (Exception ex)
@@ -109,7 +111,8 @@ public class MoviesController : ControllerBase
     {
         try
         {
-            _logger.LogDebug("Obteniendo películas: total={Total}, order={Order}", total, order);
+            _logger.LogDebug("Obteniendo películas: total={Total}, order={Order}", 
+                total, SecurityHelper.SanitizeForLogging(order));
 
             // Validaciones de entrada
             var validationErrors = new List<string>();
@@ -182,11 +185,13 @@ public class MoviesController : ControllerBase
                 });
             }
 
-            _logger.LogDebug("Creando nueva película: {Film}", createMovieDto.Film);
+            _logger.LogDebug("Creando nueva película: {Film}", 
+                SecurityHelper.SanitizeForLogging(createMovieDto.Film));
 
             var movie = await _movieService.AddAsync(createMovieDto, cancellationToken);
             
-            _logger.LogInformation("Película creada exitosamente: {Film} con ID {Id}", movie.Film, movie.Id);
+            _logger.LogInformation("Película creada exitosamente: {Film} con ID {Id}", 
+                SecurityHelper.SanitizeForLogging(movie.Film), movie.Id);
             
             return CreatedAtAction(
                 nameof(GetMovie), 
@@ -195,7 +200,8 @@ public class MoviesController : ControllerBase
         }
         catch (ValidationException ex)
         {
-            _logger.LogWarning(ex, "Error de validación al crear película: {Film}", createMovieDto?.Film);
+            _logger.LogWarning(ex, "Error de validación al crear película: {Film}", 
+                SecurityHelper.SanitizeForLogging(createMovieDto?.Film));
             
             var errors = ex.Errors.Select(e => new
             {
@@ -215,7 +221,8 @@ public class MoviesController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "Operación inválida al crear película: {Film}", createMovieDto?.Film);
+            _logger.LogWarning(ex, "Operación inválida al crear película: {Film}", 
+                SecurityHelper.SanitizeForLogging(createMovieDto?.Film));
             return BadRequest(new
             {
                 title = "Operación inválida",
@@ -226,7 +233,8 @@ public class MoviesController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error al crear película: {Film}", createMovieDto?.Film);
+            _logger.LogError(ex, "Error al crear película: {Film}", 
+                SecurityHelper.SanitizeForLogging(createMovieDto?.Film));
             throw;
         }
     }
