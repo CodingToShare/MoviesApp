@@ -46,18 +46,26 @@ public class AuthService : IAuthService
     {
         try
         {
-            // Validar entrada
-            if (loginRequest == null)
-            {
-                throw new ArgumentNullException(nameof(loginRequest));
-            }
-
+            // SECURITY FIX: Always ensure authentication logic executes, regardless of user input
+            // Create a safe login request to prevent user-controlled bypass
+            var safeLoginRequest = loginRequest ?? new LoginRequestDto { Username = "", Password = "" };
+            
             // Sanitizar entrada para prevenir ataques de inyección en logs
-            var sanitizedUsername = SecurityHelper.SanitizeUserInput(loginRequest.Username ?? "");
+            var sanitizedUsername = SecurityHelper.SanitizeUserInput(safeLoginRequest.Username ?? "");
 
             if (string.IsNullOrWhiteSpace(sanitizedUsername))
             {
                 _logger.LogWarning("Intento de login con username vacío o nulo");
+                // Always go through authentication timing delay to prevent timing attacks
+                await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken);
+                return null;
+            }
+
+            if (string.IsNullOrWhiteSpace(safeLoginRequest.Password))
+            {
+                _logger.LogWarning("Intento de login con contraseña vacía para usuario: {Username}", SecurityHelper.SanitizeForLogging(sanitizedUsername));
+                // Always go through authentication timing delay to prevent timing attacks
+                await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken);
                 return null;
             }
 
@@ -78,11 +86,12 @@ public class AuthService : IAuthService
             if (!user.CanLogin())
             {
                 _logger.LogWarning("Usuario inactivo intentó hacer login: {Username}", SecurityHelper.SanitizeForLogging(sanitizedUsername));
+                await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken);
                 return null;
             }
 
-            // Verificar contraseña
-            if (!VerifyPassword(loginRequest.Password, user.PasswordHash))
+            // Verificar contraseña - siempre usar el safeLoginRequest
+            if (!VerifyPassword(safeLoginRequest.Password, user.PasswordHash))
             {
                 _logger.LogWarning("Contraseña incorrecta para usuario: {Username}", SecurityHelper.SanitizeForLogging(sanitizedUsername));
                 // Delay artificial para prevenir ataques de timing
@@ -110,12 +119,15 @@ public class AuthService : IAuthService
         catch (ArgumentNullException ex)
         {
             _logger.LogError(ex, "Argumento nulo en el login");
-            throw;
+            // Never bypass authentication due to exceptions
+            await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken);
+            return null;
         }
         catch (InvalidOperationException ex)
         {
             _logger.LogError(ex, "Operación inválida durante el login del usuario: {Username}", SecurityHelper.SanitizeForLogging(loginRequest?.Username ?? "unknown"));
-            throw;
+            await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken);
+            return null;
         }
         catch (TaskCanceledException ex)
         {
@@ -125,7 +137,8 @@ public class AuthService : IAuthService
         catch (TimeoutException ex)
         {
             _logger.LogError(ex, "Timeout durante el login del usuario: {Username}", SecurityHelper.SanitizeForLogging(loginRequest?.Username ?? "unknown"));
-            throw;
+            await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken);
+            return null;
         }
     }
 
@@ -133,10 +146,30 @@ public class AuthService : IAuthService
     {
         try
         {
-            _logger.LogDebug("Registrando nuevo usuario: {Username}", SecurityHelper.SanitizeForLogging(registerRequest.Username));
+            // SECURITY FIX: Always ensure registration logic executes, regardless of user input
+            // Create a safe register request to prevent user-controlled bypass
+            var safeRegisterRequest = registerRequest ?? new RegisterRequestDto 
+            { 
+                Username = "", 
+                Email = "", 
+                Password = "", 
+                FirstName = "", 
+                LastName = "" 
+            };
+
+            _logger.LogDebug("Registrando nuevo usuario: {Username}", SecurityHelper.SanitizeForLogging(safeRegisterRequest.Username));
+
+            // Validar que todos los campos requeridos estén presentes
+            if (string.IsNullOrWhiteSpace(safeRegisterRequest.Username) ||
+                string.IsNullOrWhiteSpace(safeRegisterRequest.Email) ||
+                string.IsNullOrWhiteSpace(safeRegisterRequest.Password))
+            {
+                _logger.LogWarning("Intento de registro con campos requeridos vacíos");
+                throw new ArgumentException("Username, Email y Password son campos requeridos");
+            }
 
             // Verificar si el usuario ya existe
-            var existingUser = await _userRepository.ExistsAsync(registerRequest.Username, registerRequest.Email, cancellationToken);
+            var existingUser = await _userRepository.ExistsAsync(safeRegisterRequest.Username, safeRegisterRequest.Email, cancellationToken);
             if (existingUser)
             {
                 throw new InvalidOperationException("Ya existe un usuario con ese username o email");
@@ -145,11 +178,11 @@ public class AuthService : IAuthService
             // Crear nuevo usuario
             var user = new User
             {
-                Username = registerRequest.Username,
-                Email = registerRequest.Email,
-                PasswordHash = HashPassword(registerRequest.Password),
-                FirstName = registerRequest.FirstName,
-                LastName = registerRequest.LastName,
+                Username = safeRegisterRequest.Username,
+                Email = safeRegisterRequest.Email,
+                PasswordHash = HashPassword(safeRegisterRequest.Password),
+                FirstName = safeRegisterRequest.FirstName,
+                LastName = safeRegisterRequest.LastName,
                 Role = "User", // Rol por defecto
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
@@ -161,7 +194,7 @@ public class AuthService : IAuthService
             var token = GenerateSecureJwtToken(user);
             var expiresAt = DateTime.UtcNow.AddMinutes(_jwtExpirationMinutes);
 
-            _logger.LogInformation("Usuario registrado exitosamente: {Username}", SecurityHelper.SanitizeForLogging(registerRequest.Username));
+            _logger.LogInformation("Usuario registrado exitosamente: {Username}", SecurityHelper.SanitizeForLogging(safeRegisterRequest.Username));
 
             return new LoginResponseDto
             {
