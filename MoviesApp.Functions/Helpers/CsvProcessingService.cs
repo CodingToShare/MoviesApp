@@ -4,6 +4,7 @@ using CsvHelper;
 using CsvHelper.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using MoviesApp.Application.Helpers;
 using MoviesApp.Domain.Entities;
 using MoviesApp.Functions.Models;
 using MoviesApp.Infrastructure.Data;
@@ -209,11 +210,17 @@ public class CsvProcessingService
                 var keepMovie = movies.First();
                 var duplicatesToRemove = movies.Skip(1).ToList();
 
+                // Marcar la película que se mantiene como actualizada para reflejar el proceso de limpieza
+                keepMovie.MarkAsUpdated();
+                _logger.LogInformation("Película mantenida durante limpieza de duplicados: {Film} (ID: {Id})", 
+                    SecurityHelper.SanitizeForLogging(keepMovie.Film), keepMovie.Id);
+
                 foreach (var duplicate in duplicatesToRemove)
                 {
                     _context.Movies.Remove(duplicate);
                     result.DuplicatesRemoved++;
-                    _logger.LogInformation("Duplicado removido: {Film} (ID: {Id})", duplicate.Film, duplicate.Id);
+                    _logger.LogInformation("Duplicado removido: {Film} (ID: {Id})", 
+                        SecurityHelper.SanitizeForLogging(duplicate.Film), duplicate.Id);
                 }
             }
 
@@ -229,7 +236,7 @@ public class CsvProcessingService
                 movie.MarkAsUpdated();
                 result.ScoresCorrected++;
                 _logger.LogInformation("Puntaje corregido: {Film} - {OldScore} → {NewScore}", 
-                    movie.Film, oldScore, movie.Score);
+                    SecurityHelper.SanitizeForLogging(movie.Film), oldScore, movie.Score);
             }
 
             // Corregir años inválidos
@@ -245,7 +252,7 @@ public class CsvProcessingService
                 movie.MarkAsUpdated();
                 result.YearsCorrected++;
                 _logger.LogInformation("Año corregido: {Film} - {OldYear} → {NewYear}", 
-                    movie.Film, oldYear, movie.Year);
+                    SecurityHelper.SanitizeForLogging(movie.Film), oldYear, movie.Year);
             }
 
             await _context.SaveChangesAsync();
