@@ -200,9 +200,9 @@ public class CsvProcessingService
                 .Where(g => g.Count() > 1)
                 .ToListAsync();
 
-            foreach (var group in duplicates)
+            // Usar Select para transformar explícitamente cada grupo en una lista ordenada de películas
+            foreach (var movies in duplicates.Select(group => group.OrderBy(m => m.Id).ToList()))
             {
-                var movies = group.OrderBy(m => m.Id).ToList();
                 var duplicatesToRemove = movies.Skip(1).ToList();
 
                 // Marcar la primera película (la que se mantiene) como actualizada para reflejar el proceso de limpieza
