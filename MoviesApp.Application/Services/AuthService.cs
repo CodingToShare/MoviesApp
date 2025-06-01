@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using MoviesApp.Application.DTOs.Auth;
 using MoviesApp.Application.Interfaces;
+using MoviesApp.Application.Helpers;
 using MoviesApp.Domain.Entities;
 using MoviesApp.Domain.Interfaces;
 using AutoMapper;
@@ -53,21 +54,21 @@ public class AuthService : IAuthService
             }
 
             // Sanitizar username para prevenir ataques
-            var sanitizedUsername = SanitizeInput(loginRequest.Username);
+            var sanitizedUsername = SecurityHelper.SanitizeUserInput(loginRequest.Username);
             if (string.IsNullOrWhiteSpace(sanitizedUsername))
             {
-                _logger.LogWarning("Username contiene caracteres no válidos: {Username}", SanitizeForLogging(sanitizedUsername));
+                _logger.LogWarning("Username contiene caracteres no válidos: {Username}", SecurityHelper.SanitizeForLogging(sanitizedUsername));
                 return null;
             }
 
-            _logger.LogDebug("Intentando login para usuario: {Username}", SanitizeForLogging(sanitizedUsername));
+            _logger.LogDebug("Intentando login para usuario: {Username}", SecurityHelper.SanitizeForLogging(sanitizedUsername));
 
             // Buscar usuario por username sanitizado
             var user = await _userRepository.GetByUsernameAsync(sanitizedUsername, cancellationToken);
             
             if (user == null)
             {
-                _logger.LogWarning("Usuario no encontrado: {Username}", SanitizeForLogging(sanitizedUsername));
+                _logger.LogWarning("Usuario no encontrado: {Username}", SecurityHelper.SanitizeForLogging(sanitizedUsername));
                 // Delay artificial para prevenir ataques de timing
                 await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken);
                 return null;
@@ -76,14 +77,14 @@ public class AuthService : IAuthService
             // Verificar si el usuario puede hacer login
             if (!user.CanLogin())
             {
-                _logger.LogWarning("Usuario inactivo intentó hacer login: {Username}", SanitizeForLogging(sanitizedUsername));
+                _logger.LogWarning("Usuario inactivo intentó hacer login: {Username}", SecurityHelper.SanitizeForLogging(sanitizedUsername));
                 return null;
             }
 
             // Verificar contraseña
             if (!VerifyPassword(loginRequest.Password, user.PasswordHash))
             {
-                _logger.LogWarning("Contraseña incorrecta para usuario: {Username}", SanitizeForLogging(sanitizedUsername));
+                _logger.LogWarning("Contraseña incorrecta para usuario: {Username}", SecurityHelper.SanitizeForLogging(sanitizedUsername));
                 // Delay artificial para prevenir ataques de timing
                 await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken);
                 return null;
@@ -97,7 +98,7 @@ public class AuthService : IAuthService
             var token = GenerateSecureJwtToken(user);
             var expiresAt = DateTime.UtcNow.AddMinutes(_jwtExpirationMinutes);
 
-            _logger.LogInformation("Login exitoso para usuario: {Username}", SanitizeForLogging(sanitizedUsername));
+            _logger.LogInformation("Login exitoso para usuario: {Username}", SecurityHelper.SanitizeForLogging(sanitizedUsername));
 
             return new LoginResponseDto
             {
@@ -108,7 +109,7 @@ public class AuthService : IAuthService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error durante el login del usuario: {Username}", SanitizeForLogging(loginRequest.Username));
+            _logger.LogError(ex, "Error durante el login del usuario: {Username}", SecurityHelper.SanitizeForLogging(loginRequest.Username));
             throw;
         }
     }
@@ -117,7 +118,7 @@ public class AuthService : IAuthService
     {
         try
         {
-            _logger.LogDebug("Registrando nuevo usuario: {Username}", SanitizeForLogging(registerRequest.Username));
+            _logger.LogDebug("Registrando nuevo usuario: {Username}", SecurityHelper.SanitizeForLogging(registerRequest.Username));
 
             // Verificar si el usuario ya existe
             var existingUser = await _userRepository.ExistsAsync(registerRequest.Username, registerRequest.Email, cancellationToken);
@@ -145,7 +146,7 @@ public class AuthService : IAuthService
             var token = GenerateSecureJwtToken(user);
             var expiresAt = DateTime.UtcNow.AddMinutes(_jwtExpirationMinutes);
 
-            _logger.LogInformation("Usuario registrado exitosamente: {Username}", SanitizeForLogging(registerRequest.Username));
+            _logger.LogInformation("Usuario registrado exitosamente: {Username}", SecurityHelper.SanitizeForLogging(registerRequest.Username));
 
             return new LoginResponseDto
             {
@@ -156,7 +157,7 @@ public class AuthService : IAuthService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error durante el registro del usuario: {Username}", SanitizeForLogging(registerRequest.Username));
+            _logger.LogError(ex, "Error durante el registro del usuario: {Username}", SecurityHelper.SanitizeForLogging(registerRequest.Username));
             throw;
         }
     }
@@ -256,74 +257,5 @@ public class AuthService : IAuthService
             // En caso de error en la verificación, devolver false por seguridad
             return false;
         }
-    }
-
-    /// <summary>
-    /// Sanitiza la entrada para prevenir ataques de inyección
-    /// </summary>
-    private static string SanitizeInput(string input)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-        {
-            return string.Empty;
-        }
-
-        // Remover caracteres peligrosos
-        var dangerousChars = new[] { 
-            "<", ">", "\"", "'", "&", "\0", "\r", "\n", ";", 
-            "--", "/*", "*/", "script", "javascript", "vbscript",
-            "onload", "onerror", "onclick"
-        };
-
-        var sanitized = input;
-        foreach (var dangerousChar in dangerousChars)
-        {
-            sanitized = sanitized.Replace(dangerousChar, "", StringComparison.OrdinalIgnoreCase);
-        }
-
-        // Limitar longitud
-        if (sanitized.Length > 50)
-        {
-            sanitized = sanitized[..50];
-        }
-
-        return sanitized.Trim();
-    }
-
-    /// <summary>
-    /// Sanitiza la entrada específicamente para logs y previene inyección de logs/forgery
-    /// </summary>
-    private static string SanitizeForLogging(string? input)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-        {
-            return string.Empty;
-        }
-
-        // Remover/reemplazar caracteres de control que pueden ser usados para log injection
-        var sanitized = input
-            .Replace(Environment.NewLine, " ")  // Remover nuevas líneas
-            .Replace("\n", " ")                 // Remover \n
-            .Replace("\r", " ")                 // Remover \r
-            .Replace("\t", " ")                 // Remover tabs
-            .Replace("\0", "")                  // Remover null characters
-            .Replace("\x1A", "")                // Remover substitute character
-            .Replace("<", "")                   // Remover HTML tags
-            .Replace(">", "")
-            .Replace("\"", "")                  // Remover quotes
-            .Replace("'", "")
-            .Replace("&", "")                   // Remover HTML entities
-            .Replace(";", "")                   // Remover separadores SQL
-            .Replace("--", "")                  // Remover comentarios SQL
-            .Replace("/*", "")                  // Remover comentarios multilinea
-            .Replace("*/", "");
-
-        // Limitar longitud para prevenir log flooding
-        if (sanitized.Length > 100)
-        {
-            sanitized = sanitized[..100] + "...";
-        }
-
-        return sanitized.Trim();
     }
 } 

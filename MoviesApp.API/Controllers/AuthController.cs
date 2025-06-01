@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using MoviesApp.Application.DTOs.Auth;
 using MoviesApp.Application.Interfaces;
+using MoviesApp.Application.Helpers;
+using FluentValidation;
 using System.Net;
+using System.Linq;
 
 namespace MoviesApp.API.Controllers;
 
@@ -15,11 +18,19 @@ public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
     private readonly ILogger<AuthController> _logger;
+    private readonly IValidator<LoginRequestDto> _loginValidator;
+    private readonly IValidator<RegisterRequestDto> _registerValidator;
 
-    public AuthController(IAuthService authService, ILogger<AuthController> logger)
+    public AuthController(
+        IAuthService authService, 
+        ILogger<AuthController> logger,
+        IValidator<LoginRequestDto> loginValidator,
+        IValidator<RegisterRequestDto> registerValidator)
     {
         _authService = authService ?? throw new ArgumentNullException(nameof(authService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _loginValidator = loginValidator ?? throw new ArgumentNullException(nameof(loginValidator));
+        _registerValidator = registerValidator ?? throw new ArgumentNullException(nameof(registerValidator));
     }
 
     /// <summary>
@@ -43,25 +54,35 @@ public class AuthController : ControllerBase
     {
         try
         {
-            if (loginRequest == null)
+            // Usar FluentValidation para validación robusta - previene user-controlled bypass
+            var validationResult = await _loginValidator.ValidateAsync(loginRequest, cancellationToken);
+            if (!validationResult.IsValid)
             {
-                _logger.LogWarning("Intento de login con datos nulos");
+                _logger.LogWarning("Validación de login fallida: {Errors}", 
+                    string.Join(", ", validationResult.Errors.Select(e => e.ErrorMessage)));
+                
                 return BadRequest(new
                 {
-                    title = "Datos requeridos",
+                    title = "Datos inválidos",
                     status = 400,
-                    detail = "Debe proporcionar las credenciales de login",
+                    detail = "Los datos proporcionados no son válidos",
+                    errors = validationResult.Errors.Select(e => e.ErrorMessage),
                     timestamp = DateTime.UtcNow
                 });
             }
 
-            _logger.LogDebug("Procesando login para usuario: {Username}", loginRequest.Username);
+            _logger.LogDebug("Procesando login para usuario: {Username}", 
+                SecurityHelper.SanitizeForLogging(loginRequest.Username));
 
+            // Siempre llamar al servicio de autenticación con datos validados
+            // Esto previene el bypass controlado por usuario de la lógica de autenticación
             var result = await _authService.LoginAsync(loginRequest, cancellationToken);
 
             if (result == null)
             {
-                _logger.LogWarning("Login fallido para usuario: {Username}", loginRequest.Username);
+                _logger.LogWarning("Login fallido para usuario: {Username}", 
+                    SecurityHelper.SanitizeForLogging(loginRequest.Username));
+                
                 return Unauthorized(new
                 {
                     title = "Credenciales incorrectas",
@@ -71,12 +92,15 @@ public class AuthController : ControllerBase
                 });
             }
 
-            _logger.LogInformation("Login exitoso para usuario: {Username}", loginRequest.Username);
+            _logger.LogInformation("Login exitoso para usuario: {Username}", 
+                SecurityHelper.SanitizeForLogging(loginRequest.Username));
+            
             return Ok(result);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error durante el login del usuario: {Username}", loginRequest?.Username);
+            _logger.LogError(ex, "Error durante el login del usuario: {Username}", 
+                SecurityHelper.SanitizeForLogging(loginRequest?.Username));
             throw;
         }
     }
@@ -100,23 +124,31 @@ public class AuthController : ControllerBase
     {
         try
         {
-            if (registerRequest == null)
+            // Usar FluentValidation para validación robusta - previene user-controlled bypass
+            var validationResult = await _registerValidator.ValidateAsync(registerRequest, cancellationToken);
+            if (!validationResult.IsValid)
             {
-                _logger.LogWarning("Intento de registro con datos nulos");
+                _logger.LogWarning("Validación de registro fallida: {Errors}", 
+                    string.Join(", ", validationResult.Errors.Select(e => e.ErrorMessage)));
+                
                 return BadRequest(new
                 {
-                    title = "Datos requeridos",
+                    title = "Datos inválidos",
                     status = 400,
-                    detail = "Debe proporcionar los datos de registro",
+                    detail = "Los datos proporcionados no son válidos",
+                    errors = validationResult.Errors.Select(e => e.ErrorMessage),
                     timestamp = DateTime.UtcNow
                 });
             }
 
-            _logger.LogDebug("Procesando registro para usuario: {Username}", registerRequest.Username);
+            _logger.LogDebug("Procesando registro para usuario: {Username}", 
+                SecurityHelper.SanitizeForLogging(registerRequest.Username));
 
+            // Siempre llamar al servicio de registro con datos validados
             var result = await _authService.RegisterAsync(registerRequest, cancellationToken);
 
-            _logger.LogInformation("Usuario registrado exitosamente: {Username}", registerRequest.Username);
+            _logger.LogInformation("Usuario registrado exitosamente: {Username}", 
+                SecurityHelper.SanitizeForLogging(registerRequest.Username));
             
             return CreatedAtAction(
                 nameof(GetUserInfo), 
@@ -125,7 +157,9 @@ public class AuthController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "Error de validación en registro: {Username}", registerRequest?.Username);
+            _logger.LogWarning(ex, "Error de validación en registro: {Username}", 
+                SecurityHelper.SanitizeForLogging(registerRequest?.Username));
+            
             return BadRequest(new
             {
                 title = "Error de registro",
@@ -136,7 +170,8 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error durante el registro del usuario: {Username}", registerRequest?.Username);
+            _logger.LogError(ex, "Error durante el registro del usuario: {Username}", 
+                SecurityHelper.SanitizeForLogging(registerRequest?.Username));
             throw;
         }
     }
