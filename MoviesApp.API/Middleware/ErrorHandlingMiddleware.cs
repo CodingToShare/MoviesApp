@@ -1,6 +1,7 @@
 using FluentValidation;
 using System.Net;
 using System.Text.Json;
+using System.Security;
 
 namespace MoviesApp.API.Middleware;
 
@@ -62,6 +63,81 @@ public class ErrorHandlingMiddleware
         catch (NotSupportedException ex)
         {
             _logger.LogError(ex, "Operación no soportada: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
+        catch (NullReferenceException ex)
+        {
+            _logger.LogError(ex, "Referencia nula: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
+        catch (IndexOutOfRangeException ex)
+        {
+            _logger.LogError(ex, "Índice fuera de rango: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
+        catch (InvalidCastException ex)
+        {
+            _logger.LogError(ex, "Conversión inválida: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
+        catch (FormatException ex)
+        {
+            _logger.LogWarning(ex, "Error de formato: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
+        catch (OverflowException ex)
+        {
+            _logger.LogError(ex, "Desbordamiento numérico: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
+        catch (DivideByZeroException ex)
+        {
+            _logger.LogError(ex, "División por cero: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
+        catch (OutOfMemoryException ex)
+        {
+            _logger.LogCritical(ex, "Memoria insuficiente: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
+        catch (StackOverflowException ex)
+        {
+            _logger.LogCritical(ex, "Desbordamiento de pila: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
+        catch (FileNotFoundException ex)
+        {
+            _logger.LogError(ex, "Archivo no encontrado: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
+        catch (DirectoryNotFoundException ex)
+        {
+            _logger.LogError(ex, "Directorio no encontrado: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
+        catch (IOException ex)
+        {
+            _logger.LogError(ex, "Error de entrada/salida: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "Error de JSON: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "Error de solicitud HTTP: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
+        catch (SecurityException ex)
+        {
+            _logger.LogError(ex, "Error de seguridad: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
+        catch (NotImplementedException ex)
+        {
+            _logger.LogError(ex, "Funcionalidad no implementada: {Message}", ex.Message);
             await HandleExceptionAsync(context, ex);
         }
         catch (Exception ex)
@@ -132,6 +208,108 @@ public class ErrorHandlingMiddleware
                 Title = "Tiempo de espera agotado",
                 Status = (int)HttpStatusCode.RequestTimeout,
                 Detail = "La operación tardó demasiado tiempo en completarse"
+            },
+            TaskCanceledException => new ErrorResponse
+            {
+                Title = "Operación cancelada",
+                Status = (int)HttpStatusCode.RequestTimeout,
+                Detail = "La operación fue cancelada"
+            },
+            NotSupportedException => new ErrorResponse
+            {
+                Title = "Operación no soportada",
+                Status = (int)HttpStatusCode.NotImplemented,
+                Detail = "La operación solicitada no es soportada"
+            },
+            NullReferenceException => new ErrorResponse
+            {
+                Title = "Error interno",
+                Status = (int)HttpStatusCode.InternalServerError,
+                Detail = "Se produjo un error interno del servidor"
+            },
+            IndexOutOfRangeException => new ErrorResponse
+            {
+                Title = "Error interno",
+                Status = (int)HttpStatusCode.InternalServerError,
+                Detail = "Se produjo un error interno del servidor"
+            },
+            InvalidCastException => new ErrorResponse
+            {
+                Title = "Error de conversión",
+                Status = (int)HttpStatusCode.BadRequest,
+                Detail = "Error en la conversión de datos"
+            },
+            FormatException => new ErrorResponse
+            {
+                Title = "Formato inválido",
+                Status = (int)HttpStatusCode.BadRequest,
+                Detail = "El formato de los datos no es válido"
+            },
+            OverflowException => new ErrorResponse
+            {
+                Title = "Error de desbordamiento",
+                Status = (int)HttpStatusCode.BadRequest,
+                Detail = "El valor proporcionado es demasiado grande"
+            },
+            DivideByZeroException => new ErrorResponse
+            {
+                Title = "Error matemático",
+                Status = (int)HttpStatusCode.BadRequest,
+                Detail = "División por cero no permitida"
+            },
+            OutOfMemoryException => new ErrorResponse
+            {
+                Title = "Error de memoria",
+                Status = (int)HttpStatusCode.InternalServerError,
+                Detail = "Memoria insuficiente para procesar la solicitud"
+            },
+            StackOverflowException => new ErrorResponse
+            {
+                Title = "Error de desbordamiento",
+                Status = (int)HttpStatusCode.InternalServerError,
+                Detail = "Se produjo un desbordamiento de pila"
+            },
+            FileNotFoundException => new ErrorResponse
+            {
+                Title = "Archivo no encontrado",
+                Status = (int)HttpStatusCode.NotFound,
+                Detail = "El archivo solicitado no fue encontrado"
+            },
+            DirectoryNotFoundException => new ErrorResponse
+            {
+                Title = "Directorio no encontrado",
+                Status = (int)HttpStatusCode.NotFound,
+                Detail = "El directorio solicitado no fue encontrado"
+            },
+            IOException => new ErrorResponse
+            {
+                Title = "Error de entrada/salida",
+                Status = (int)HttpStatusCode.InternalServerError,
+                Detail = "Error al acceder al sistema de archivos"
+            },
+            JsonException => new ErrorResponse
+            {
+                Title = "Error de JSON",
+                Status = (int)HttpStatusCode.BadRequest,
+                Detail = "Error en el formato JSON"
+            },
+            HttpRequestException => new ErrorResponse
+            {
+                Title = "Error de solicitud HTTP",
+                Status = (int)HttpStatusCode.BadGateway,
+                Detail = "Error al procesar solicitud HTTP externa"
+            },
+            SecurityException => new ErrorResponse
+            {
+                Title = "Error de seguridad",
+                Status = (int)HttpStatusCode.Forbidden,
+                Detail = "Acceso denegado por política de seguridad"
+            },
+            NotImplementedException => new ErrorResponse
+            {
+                Title = "Funcionalidad no implementada",
+                Status = (int)HttpStatusCode.NotImplemented,
+                Detail = "La funcionalidad solicitada aún no está implementada"
             },
             _ => new ErrorResponse
             {
