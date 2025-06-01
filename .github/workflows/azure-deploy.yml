@@ -4,6 +4,11 @@ on:
   push:
     branches: ["master"]
 
+# Add permissions for CodeQL to work properly
+permissions:
+  contents: read
+  security-events: write
+
 env:
   AZURE_WEBAPP_NAME: movieappsoftwarecolombia
   AZURE_FUNCTIONAPP_NAME: moviesapp-functions
@@ -11,7 +16,7 @@ env:
   NODE_VERSION: '18.x'
   AZURE_RESOURCE_GROUP: moviesapp-rg
   AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-  # Disable CodeQL temporarily while fixing build issues
+  # Enable CodeQL for public repository
   ENABLE_CODEQL: true
 
 jobs:
@@ -24,6 +29,18 @@ jobs:
     steps:
     - name: 🔄 Checkout code
       uses: actions/checkout@v4
+
+    # ===============================
+    # SECURITY SCANNING - CODEQL
+    # ===============================
+    - name: 🔍 Initialize CodeQL
+      if: env.ENABLE_CODEQL == 'true'
+      uses: github/codeql-action/init@v3
+      with:
+        languages: csharp
+        # For public repos, autobuild works better
+        build-mode: autobuild
+        queries: security-and-quality
 
     - name: 🔍 Verify project structure
       run: |
@@ -181,6 +198,10 @@ jobs:
         echo "✅ Infrastructure project built successfully. Now building full solution:"
         dotnet build MoviesApp.sln --no-restore --configuration Release --verbosity detailed
 
+    - name: 🔍 Perform CodeQL Analysis
+      if: env.ENABLE_CODEQL == 'true'
+      uses: github/codeql-action/analyze@v3
+
     - name: 🧪 Run unit tests
       run: |
         dotnet test MoviesApp.Tests/MoviesApp.Tests.csproj \
@@ -211,16 +232,6 @@ jobs:
     - name: 🔒 Run security scan
       run: |
         dotnet list MoviesApp.sln package --vulnerable --include-transitive || true
-        
-    - name: 🔍 Run CodeQL Analysis (Init)
-      if: env.ENABLE_CODEQL == 'true' && success()
-      uses: github/codeql-action/init@v3
-      with:
-        languages: csharp
-
-    - name: 🔍 Perform CodeQL Analysis
-      if: env.ENABLE_CODEQL == 'true' && success()
-      uses: github/codeql-action/analyze@v3
 
   # ===============================
   # BUILD API ARTIFACT
