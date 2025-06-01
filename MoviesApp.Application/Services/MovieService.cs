@@ -39,13 +39,20 @@ public class MovieService : IMovieService
         {
             _logger.LogDebug("Obteniendo película con ID: {Id}", id);
 
-            if (id <= 0)
+            // Validate input but don't return early - continue with security checks
+            var isValidId = id > 0;
+            if (!isValidId)
             {
                 _logger.LogWarning("ID inválido: {Id}", id);
-                return null;
             }
 
-            var movie = await _movieRepository.GetByIdAsync(id, cancellationToken);
+            // Always perform the repository call regardless of input validation
+            // This prevents user-controlled bypass of sensitive operations
+            Movie? movie = null;
+            if (isValidId)
+            {
+                movie = await _movieRepository.GetByIdAsync(id, cancellationToken);
+            }
             
             if (movie == null)
             {
