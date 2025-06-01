@@ -113,15 +113,31 @@ public class MovieRepository : IMovieRepository
     {
         try
         {
-            _logger.LogDebug("Buscando películas del género: {Genre}", genre);
+            // Validar y sanitizar input para prevenir inyección SQL
+            if (string.IsNullOrWhiteSpace(genre))
+            {
+                _logger.LogWarning("Se intentó buscar películas con género nulo o vacío");
+                return Enumerable.Empty<Movie>();
+            }
+
+            // Sanitizar el género para prevenir ataques de inyección
+            var sanitizedGenre = SanitizeSearchInput(genre);
+            if (string.IsNullOrWhiteSpace(sanitizedGenre))
+            {
+                _logger.LogWarning("Género contiene caracteres no válidos: {Genre}", genre);
+                return Enumerable.Empty<Movie>();
+            }
+
+            _logger.LogDebug("Buscando películas del género: {Genre}", sanitizedGenre);
             
+            // Usar EF Core con parámetros seguros (protege contra SQL injection)
             var movies = await _context.Movies
                 .AsNoTracking()
-                .Where(m => m.Genre.Contains(genre))
+                .Where(m => EF.Functions.Like(m.Genre, $"%{sanitizedGenre}%"))
                 .OrderBy(m => m.Film)
                 .ToListAsync(cancellationToken);
 
-            _logger.LogDebug("Se encontraron {Count} películas del género {Genre}", movies.Count, genre);
+            _logger.LogDebug("Se encontraron {Count} películas del género {Genre}", movies.Count, sanitizedGenre);
             return movies;
         }
         catch (Exception ex)
@@ -466,6 +482,39 @@ public class MovieRepository : IMovieRepository
             "updatedat" => ascending ? query.OrderBy(m => m.UpdatedAt) : query.OrderByDescending(m => m.UpdatedAt),
             _ => ascending ? query.OrderBy(m => m.Year) : query.OrderByDescending(m => m.Year)
         };
+    }
+
+    /// <summary>
+    /// Sanitiza la entrada de búsqueda para prevenir inyecciones SQL y XSS
+    /// </summary>
+    private static string SanitizeSearchInput(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return string.Empty;
+        }
+
+        // Remover caracteres peligrosos que podrían usarse en ataques de inyección
+        var dangerousChars = new[] { 
+            "<", ">", "\"", "'", "&", "\0", "\r", "\n", ";", 
+            "--", "/*", "*/", "xp_", "sp_", "exec", "execute",
+            "drop", "delete", "insert", "update", "create", "alter", "union", "select"
+        };
+
+        var sanitized = input;
+
+        foreach (var dangerousChar in dangerousChars)
+        {
+            sanitized = sanitized.Replace(dangerousChar, "", StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Limitar longitud para prevenir ataques de buffer overflow
+        if (sanitized.Length > 100)
+        {
+            sanitized = sanitized[..100];
+        }
+
+        return sanitized.Trim();
     }
 
     #endregion

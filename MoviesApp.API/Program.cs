@@ -22,11 +22,39 @@ WebApplication? app = null;
 
 try
 {
+    // ===============================
+    // CONFIGURACIÓN SEGURA DE SECRETOS
+    // ===============================
+    
+    // Cargar secretos desde variables de entorno de forma segura
+    var connectionString = Environment.GetEnvironmentVariable("MOVIESAPP_CONNECTION_STRING") 
+        ?? builder.Configuration.GetConnectionString("DefaultConnection")
+        ?? throw new InvalidOperationException("Connection string no configurada. Use MOVIESAPP_CONNECTION_STRING environment variable.");
+
+    var jwtKey = Environment.GetEnvironmentVariable("MOVIESAPP_JWT_KEY") 
+        ?? builder.Configuration["Jwt:Key"]
+        ?? throw new InvalidOperationException("JWT Key no configurada. Use MOVIESAPP_JWT_KEY environment variable.");
+
+    var jwtIssuer = Environment.GetEnvironmentVariable("MOVIESAPP_JWT_ISSUER") 
+        ?? builder.Configuration["Jwt:Issuer"]
+        ?? "MoviesApp.API";
+
+    // Validar que la clave JWT tenga suficiente longitud para seguridad
+    if (jwtKey.Length < 32)
+    {
+        throw new InvalidOperationException("JWT Key debe tener al menos 32 caracteres para seguridad.");
+    }
+
+    // Configurar el connection string de forma segura
+    builder.Configuration["ConnectionStrings:DefaultConnection"] = connectionString;
+    builder.Configuration["Jwt:Key"] = jwtKey;
+    builder.Configuration["Jwt:Issuer"] = jwtIssuer;
+
     // Agregar servicios de capas de aplicación e infraestructura
     builder.Services.AddApplicationServices();
     builder.Services.AddInfrastructureServices(builder.Configuration);
 
-    // Configurar autenticación JWT
+    // Configurar autenticación JWT con validación mejorada
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddJwtBearer(options =>
         {
@@ -36,9 +64,11 @@ try
                 ValidateAudience = false,
                 ValidateLifetime = true,
                 ValidateIssuerSigningKey = true,
-                ValidIssuer = builder.Configuration["Jwt:Issuer"],
-                IssuerSigningKey = new SymmetricSecurityKey(
-                    Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+                ValidIssuer = jwtIssuer,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+                ClockSkew = TimeSpan.FromMinutes(5), // Reducir tolerancia de tiempo
+                RequireExpirationTime = true,
+                RequireSignedTokens = true
             };
 
             options.Events = new JwtBearerEvents

@@ -45,28 +45,47 @@ public class AuthService : IAuthService
     {
         try
         {
-            _logger.LogDebug("Intentando login para usuario: {Username}", loginRequest.Username);
+            // Validar input para prevenir ataques de inyección
+            if (string.IsNullOrWhiteSpace(loginRequest.Username) || string.IsNullOrWhiteSpace(loginRequest.Password))
+            {
+                _logger.LogWarning("Intento de login con credenciales vacías desde IP desconocida");
+                return null;
+            }
 
-            // Buscar usuario por username
-            var user = await _userRepository.GetByUsernameAsync(loginRequest.Username, cancellationToken);
+            // Sanitizar username para prevenir ataques
+            var sanitizedUsername = SanitizeInput(loginRequest.Username);
+            if (string.IsNullOrWhiteSpace(sanitizedUsername))
+            {
+                _logger.LogWarning("Username contiene caracteres no válidos: {Username}", loginRequest.Username);
+                return null;
+            }
+
+            _logger.LogDebug("Intentando login para usuario: {Username}", sanitizedUsername);
+
+            // Buscar usuario por username sanitizado
+            var user = await _userRepository.GetByUsernameAsync(sanitizedUsername, cancellationToken);
             
             if (user == null)
             {
-                _logger.LogWarning("Usuario no encontrado: {Username}", loginRequest.Username);
+                _logger.LogWarning("Usuario no encontrado: {Username}", sanitizedUsername);
+                // Delay artificial para prevenir ataques de timing
+                await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken);
                 return null;
             }
 
             // Verificar si el usuario puede hacer login
             if (!user.CanLogin())
             {
-                _logger.LogWarning("Usuario inactivo intentó hacer login: {Username}", loginRequest.Username);
+                _logger.LogWarning("Usuario inactivo intentó hacer login: {Username}", sanitizedUsername);
                 return null;
             }
 
             // Verificar contraseña
             if (!VerifyPassword(loginRequest.Password, user.PasswordHash))
             {
-                _logger.LogWarning("Contraseña incorrecta para usuario: {Username}", loginRequest.Username);
+                _logger.LogWarning("Contraseña incorrecta para usuario: {Username}", sanitizedUsername);
+                // Delay artificial para prevenir ataques de timing
+                await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken);
                 return null;
             }
 
@@ -74,11 +93,11 @@ public class AuthService : IAuthService
             user.UpdateLastLogin();
             await _userRepository.UpdateAsync(user, cancellationToken);
 
-            // Generar token JWT
-            var token = GenerateJwtToken(user);
+            // Generar token JWT con seguridad mejorada
+            var token = GenerateSecureJwtToken(user);
             var expiresAt = DateTime.UtcNow.AddMinutes(_jwtExpirationMinutes);
 
-            _logger.LogInformation("Login exitoso para usuario: {Username}", loginRequest.Username);
+            _logger.LogInformation("Login exitoso para usuario: {Username}", sanitizedUsername);
 
             return new LoginResponseDto
             {
@@ -123,7 +142,7 @@ public class AuthService : IAuthService
             await _userRepository.AddAsync(user, cancellationToken);
 
             // Generar token para el nuevo usuario
-            var token = GenerateJwtToken(user);
+            var token = GenerateSecureJwtToken(user);
             var expiresAt = DateTime.UtcNow.AddMinutes(_jwtExpirationMinutes);
 
             _logger.LogInformation("Usuario registrado exitosamente: {Username}", registerRequest.Username);
@@ -181,23 +200,33 @@ public class AuthService : IAuthService
         }
     }
 
-    private string GenerateJwtToken(User user)
+    private string GenerateSecureJwtToken(User user)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.ASCII.GetBytes(_jwtKey);
+        var key = Encoding.UTF8.GetBytes(_jwtKey); // Cambiar a UTF8 para mejor seguridad
+        
+        // Agregar claims adicionales para mayor seguridad
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(ClaimTypes.Name, user.Username),
+            new(ClaimTypes.Email, user.Email),
+            new(ClaimTypes.Role, user.Role),
+            new("jti", Guid.NewGuid().ToString()), // JWT ID único
+            new("iat", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64), // Issued At
+            new("auth_time", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64) // Authentication Time
+        };
         
         var tokenDescriptor = new SecurityTokenDescriptor
         {
-            Subject = new ClaimsIdentity(new[]
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.Username),
-                new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Role, user.Role)
-            }),
+            Subject = new ClaimsIdentity(claims),
             Expires = DateTime.UtcNow.AddMinutes(_jwtExpirationMinutes),
             Issuer = _jwtIssuer,
-            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+            Audience = _jwtIssuer, // Agregar audience para mayor seguridad
+            SigningCredentials = new SigningCredentials(
+                new SymmetricSecurityKey(key), 
+                SecurityAlgorithms.HmacSha256Signature),
+            NotBefore = DateTime.UtcNow, // Token no válido antes de este momento
         };
 
         var token = tokenHandler.CreateToken(tokenDescriptor);
@@ -206,12 +235,58 @@ public class AuthService : IAuthService
 
     private static string HashPassword(string password)
     {
-        // Usar BCrypt para hash de contraseñas
+        // Validar longitud mínima de contraseña
+        if (password.Length < 8)
+        {
+            throw new ArgumentException("La contraseña debe tener al menos 8 caracteres");
+        }
+
+        // Usar BCrypt con mayor trabajo factor para mejor seguridad
         return BCrypt.Net.BCrypt.HashPassword(password, 12);
     }
 
     private static bool VerifyPassword(string password, string hash)
     {
-        return BCrypt.Net.BCrypt.Verify(password, hash);
+        try
+        {
+            return BCrypt.Net.BCrypt.Verify(password, hash);
+        }
+        catch
+        {
+            // En caso de error en la verificación, devolver false por seguridad
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Sanitiza la entrada para prevenir ataques de inyección
+    /// </summary>
+    private static string SanitizeInput(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return string.Empty;
+        }
+
+        // Remover caracteres peligrosos
+        var dangerousChars = new[] { 
+            "<", ">", "\"", "'", "&", "\0", "\r", "\n", ";", 
+            "--", "/*", "*/", "script", "javascript", "vbscript",
+            "onload", "onerror", "onclick"
+        };
+
+        var sanitized = input;
+        foreach (var dangerousChar in dangerousChars)
+        {
+            sanitized = sanitized.Replace(dangerousChar, "", StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Limitar longitud
+        if (sanitized.Length > 50)
+        {
+            sanitized = sanitized[..50];
+        }
+
+        return sanitized.Trim();
     }
 } 

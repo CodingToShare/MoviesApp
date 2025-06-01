@@ -54,7 +54,7 @@ public class MovieService : IMovieService
             }
 
             var movieDto = _mapper.Map<MovieDto>(movie);
-            _logger.LogDebug("Película encontrada: {Film}", movieDto.Film);
+            _logger.LogDebug("Película encontrada: {Film}", SanitizeLogInput(movieDto.Film));
             
             return movieDto;
         }
@@ -101,14 +101,16 @@ public class MovieService : IMovieService
     {
         try
         {
-            _logger.LogDebug("Creando nueva película: {Film}", createMovieDto.Film);
+            _logger.LogDebug("Creando nueva película: {Film}", SanitizeLogInput(createMovieDto.Film));
 
             // Validar entrada
             var validationResult = await _createValidator.ValidateAsync(createMovieDto, cancellationToken);
             if (!validationResult.IsValid)
             {
                 var errors = string.Join(", ", validationResult.Errors.Select(e => e.ErrorMessage));
-                _logger.LogWarning("Validación fallida para película {Film}: {Errors}", createMovieDto.Film, errors);
+                // Sanitize user input to prevent log injection/forgery
+                var sanitizedFilm = SanitizeLogInput(createMovieDto.Film);
+                _logger.LogWarning("Validación fallida para película {Film}: {Errors}", sanitizedFilm, errors);
                 throw new ValidationException(validationResult.Errors);
             }
 
@@ -127,15 +129,43 @@ public class MovieService : IMovieService
             await _movieRepository.AddAsync(movie, cancellationToken);
             
             var resultDto = _mapper.Map<MovieDto>(movie);
-            _logger.LogInformation("Película creada exitosamente: {Film} con ID {Id}", resultDto.Film, resultDto.Id);
+            _logger.LogInformation("Película creada exitosamente: {Film} con ID {Id}", SanitizeLogInput(resultDto.Film), resultDto.Id);
 
             return resultDto;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error al crear película: {Film}", createMovieDto.Film);
+            _logger.LogError(ex, "Error al crear película: {Film}", SanitizeLogInput(createMovieDto.Film));
             throw;
         }
+    }
+
+    /// <summary>
+    /// Sanitiza la entrada para logs y previene inyección de logs/forgery
+    /// </summary>
+    private static string SanitizeLogInput(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return string.Empty;
+        }
+
+        // Remover caracteres de control que pueden ser usados para log injection
+        var sanitized = input
+            .Replace(Environment.NewLine, " ")  // Remover nuevas líneas
+            .Replace("\n", " ")                 // Remover \n
+            .Replace("\r", " ")                 // Remover \r
+            .Replace("\t", " ")                 // Remover tabs
+            .Replace("\0", "")                  // Remover null characters
+            .Replace("\x1A", "");               // Remover substitute character
+
+        // Limitar longitud para prevenir log flooding
+        if (sanitized.Length > 200)
+        {
+            sanitized = sanitized[..200] + "...";
+        }
+
+        return sanitized.Trim();
     }
 
     // Métodos no implementados para los 3 endpoints básicos
