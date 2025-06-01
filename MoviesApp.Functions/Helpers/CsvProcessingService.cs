@@ -31,12 +31,11 @@ public class CsvProcessingService
     public async Task<CsvProcessingResult> ProcessCsvAsync(Stream csvStream, string fileName)
     {
         var result = new CsvProcessingResult { FileName = fileName };
-        var records = new List<CsvMovieRecord>();
 
         try
         {
             // Leer registros del CSV
-            records = ReadCsvRecords(csvStream);
+            var records = ReadCsvRecords(csvStream);
             result.TotalRecords = records.Count;
 
             _logger.LogInformation("Procesando {TotalRecords} registros del archivo {FileName}", 
@@ -155,8 +154,6 @@ public class CsvProcessingService
     /// </summary>
     private List<CsvMovieRecord> ReadCsvRecords(Stream csvStream)
     {
-        var records = new List<CsvMovieRecord>();
-
         using var reader = new StreamReader(csvStream, Encoding.UTF8);
         using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
         {
@@ -175,16 +172,15 @@ public class CsvProcessingService
 
         try
         {
-            records = csv.GetRecords<CsvMovieRecord>().ToList();
+            var records = csv.GetRecords<CsvMovieRecord>().ToList();
             _logger.LogInformation("📖 Se leyeron {Count} registros del CSV", records.Count);
+            return records;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "💥 Error leyendo archivo CSV");
             throw new InvalidOperationException($"Error leyendo archivo CSV: {ex.Message}", ex);
         }
-
-        return records;
     }
 
     /// <summary>
@@ -207,13 +203,13 @@ public class CsvProcessingService
             foreach (var group in duplicates)
             {
                 var movies = group.OrderBy(m => m.Id).ToList();
-                var keepMovie = movies.First();
                 var duplicatesToRemove = movies.Skip(1).ToList();
 
-                // Marcar la película que se mantiene como actualizada para reflejar el proceso de limpieza
-                keepMovie.MarkAsUpdated();
+                // Marcar la primera película (la que se mantiene) como actualizada para reflejar el proceso de limpieza
+                var movieToKeep = movies.First();
+                movieToKeep.MarkAsUpdated();
                 _logger.LogInformation("Película mantenida durante limpieza de duplicados: {Film} (ID: {Id})", 
-                    SecurityHelper.SanitizeForLogging(keepMovie.Film), keepMovie.Id);
+                    SecurityHelper.SanitizeForLogging(movieToKeep.Film), movieToKeep.Id);
 
                 foreach (var duplicate in duplicatesToRemove)
                 {
