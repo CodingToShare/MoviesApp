@@ -1,5 +1,6 @@
 using CsvHelper;
 using CsvHelper.Configuration;
+using CsvHelper.Configuration.Attributes;
 using Microsoft.Extensions.Logging;
 using MoviesApp.Domain.Entities;
 using MoviesApp.Infrastructure.Repositories;
@@ -38,7 +39,7 @@ public class CsvMovieHelper
             using var reader = new StreamReader(filePath);
             using var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
             
-            csv.Context.RegisterClassMap<MovieCsvMap>();
+            // No necesitamos registrar ClassMap - usamos atributos en MovieCsvRecord
 
             // Leer encabezados
             await csv.ReadAsync();
@@ -100,8 +101,7 @@ public class CsvMovieHelper
             using var writer = new StreamWriter(filePath);
             using var csv = new CsvWriter(writer, CultureInfo.InvariantCulture);
 
-            // Configurar mapeo
-            csv.Context.RegisterClassMap<MovieExportCsvMap>();
+            // No necesitamos registrar ClassMap - usamos atributos en MovieExportRecord
 
             // Escribir registros
             await csv.WriteRecordsAsync(movies.Select(m => new MovieExportRecord
@@ -139,7 +139,7 @@ public class CsvMovieHelper
                 using var reader = new StreamReader(filePath);
                 using var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
                 
-                csv.Context.RegisterClassMap<MovieCsvMap>();
+                // No necesitamos registrar ClassMap - usamos atributos en MovieCsvRecord
                 var records = csv.GetRecords<MovieCsvRecord>();
 
                 var genreCounts = new Dictionary<string, int>();
@@ -232,34 +232,32 @@ public class YearRange
 }
 
 /// <summary>
-/// Registro para exportación CSV
+/// Registro para exportación CSV usando atributos en lugar de ClassMap
+/// para evitar virtual calls en constructor
 /// </summary>
 public class MovieExportRecord
 {
+    [Name("ID")]
     public int Id { get; set; }
+    
+    [Name("Film")]
     public string Film { get; set; } = string.Empty;
+    
+    [Name("Genre")]
     public string Genre { get; set; } = string.Empty;
+    
+    [Name("Studio")]
     public string Studio { get; set; } = string.Empty;
+    
+    [Name("Score")]
     public int Score { get; set; }
+    
+    [Name("Year")]
     public int Year { get; set; }
+    
+    [Name("CreatedAt")]
     public DateTime CreatedAt { get; set; }
+    
+    [Name("UpdatedAt")]
     public DateTime? UpdatedAt { get; set; }
-}
-
-/// <summary>
-/// Mapeo para exportación CSV
-/// </summary>
-public class MovieExportCsvMap : ClassMap<MovieExportRecord>
-{
-    public MovieExportCsvMap()
-    {
-        Map(m => m.Id).Name("ID");
-        Map(m => m.Film).Name("Film");
-        Map(m => m.Genre).Name("Genre");
-        Map(m => m.Studio).Name("Studio");
-        Map(m => m.Score).Name("Score");
-        Map(m => m.Year).Name("Year");
-        Map(m => m.CreatedAt).Name("CreatedAt");
-        Map(m => m.UpdatedAt).Name("UpdatedAt");
-    }
 } 

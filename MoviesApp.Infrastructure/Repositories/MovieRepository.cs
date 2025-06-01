@@ -4,6 +4,8 @@ using MoviesApp.Domain.Entities;
 using MoviesApp.Domain.Interfaces;
 using MoviesApp.Infrastructure.Data;
 using CsvHelper;
+using CsvHelper.Configuration;
+using CsvHelper.Configuration.Attributes;
 using System.Globalization;
 
 namespace MoviesApp.Infrastructure.Repositories;
@@ -413,8 +415,8 @@ public class MovieRepository : IMovieRepository
             using var reader = new StreamReader(csvStream);
             using var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
             
-            // Configurar mapeo de CSV
-            csv.Context.RegisterClassMap<MovieCsvMap>();
+            // Configurar mapeo de CSV sin usar ClassMap para evitar virtual calls en constructor
+            ConfigureMovieCsvMapping(csv);
             
             var movies = new List<Movie>();
             var records = csv.GetRecords<MovieCsvRecord>();
@@ -464,6 +466,15 @@ public class MovieRepository : IMovieRepository
     #endregion
 
     #region Métodos Privados
+
+    /// <summary>
+    /// Configura el mapeo CSV sin usar herencia para evitar virtual calls en constructor
+    /// </summary>
+    private static void ConfigureMovieCsvMapping(CsvReader csv)
+    {
+        // CsvHelper usando atributos no requiere configuración adicional
+        // Los atributos [Name] en MovieCsvRecord manejan el mapeo automáticamente
+    }
 
     /// <summary>
     /// Aplica ordenamiento a la consulta
@@ -521,30 +532,26 @@ public class MovieRepository : IMovieRepository
 }
 
 /// <summary>
-/// Clase para mapear registros CSV
+/// Clase para mapear registros CSV usando atributos en lugar de ClassMap
+/// para evitar virtual calls en constructor
 /// </summary>
 public class MovieCsvRecord
 {
+    [Name("ID", "Id", "id")]
     public int Id { get; set; }
+    
+    [Name("Film", "Movie", "Title", "film", "movie", "title")]
     public string? Film { get; set; }
+    
+    [Name("Genre", "genre")]
     public string? Genre { get; set; }
+    
+    [Name("Studio", "studio")]
     public string? Studio { get; set; }
+    
+    [Name("Score", "Rating", "score", "rating")]
     public int Score { get; set; }
+    
+    [Name("Year", "year")]
     public int Year { get; set; }
-}
-
-/// <summary>
-/// Mapeo de CSV usando CsvHelper
-/// </summary>
-public class MovieCsvMap : CsvHelper.Configuration.ClassMap<MovieCsvRecord>
-{
-    public MovieCsvMap()
-    {
-        Map(m => m.Id).Name("ID", "Id", "id");
-        Map(m => m.Film).Name("Film", "Movie", "Title", "film", "movie", "title");
-        Map(m => m.Genre).Name("Genre", "genre");
-        Map(m => m.Studio).Name("Studio", "studio");
-        Map(m => m.Score).Name("Score", "Rating", "score", "rating");
-        Map(m => m.Year).Name("Year", "year");
-    }
 } 
