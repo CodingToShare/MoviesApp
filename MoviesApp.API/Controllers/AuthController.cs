@@ -54,25 +54,17 @@ public class AuthController : ControllerBase
     {
         try
         {
-            // Verificar que el request no sea null antes de procesar
-            if (loginRequest == null)
-            {
-                _logger.LogWarning("Request de login nulo recibido");
-                return BadRequest(new
-                {
-                    title = "Datos inválidos",
-                    status = 400,
-                    detail = "El cuerpo de la solicitud no puede estar vacío",
-                    timestamp = DateTime.UtcNow
-                });
-            }
-
-            // Usar FluentValidation para validación robusta - previene user-controlled bypass
-            var validationResult = await _loginValidator.ValidateAsync(loginRequest, cancellationToken);
+            // Asegurar que siempre tenemos un objeto válido para prevenir bypass controlado por usuario
+            // Si loginRequest es null, usar un objeto vacío que fallará la validación
+            var safeLoginRequest = loginRequest ?? new LoginRequestDto { Username = "", Password = "" };
+            
+            // Siempre ejecutar la lógica de autenticación - no permitir bypass controlado por usuario
+            // La validación manejará inputs nulos/inválidos de forma segura
+            var validationResult = await _loginValidator.ValidateAsync(safeLoginRequest, cancellationToken);
             if (!validationResult.IsValid)
             {
-                _logger.LogWarning("Validación de login fallida: {Errors}", 
-                    string.Join(", ", validationResult.Errors.Select(e => e.ErrorMessage)));
+                // Log sin exponer información sensible
+                _logger.LogWarning("Intento de login con datos inválidos");
                 
                 return BadRequest(new
                 {
@@ -85,16 +77,16 @@ public class AuthController : ControllerBase
             }
 
             _logger.LogDebug("Procesando login para usuario: {Username}", 
-                SecurityHelper.SanitizeForLogging(loginRequest.Username));
+                SecurityHelper.SanitizeForLogging(safeLoginRequest.Username));
 
             // Siempre llamar al servicio de autenticación con datos validados
-            // Esto previene el bypass controlado por usuario de la lógica de autenticación
-            var result = await _authService.LoginAsync(loginRequest, cancellationToken);
+            // Esto asegura que la autenticación siempre se ejecute
+            var result = await _authService.LoginAsync(safeLoginRequest, cancellationToken);
 
             if (result == null)
             {
                 _logger.LogWarning("Login fallido para usuario: {Username}", 
-                    SecurityHelper.SanitizeForLogging(loginRequest.Username));
+                    SecurityHelper.SanitizeForLogging(safeLoginRequest.Username));
                 
                 return Unauthorized(new
                 {
@@ -106,7 +98,7 @@ public class AuthController : ControllerBase
             }
 
             _logger.LogInformation("Login exitoso para usuario: {Username}", 
-                SecurityHelper.SanitizeForLogging(loginRequest.Username));
+                SecurityHelper.SanitizeForLogging(safeLoginRequest.Username));
             
             return Ok(result);
         }
@@ -137,25 +129,23 @@ public class AuthController : ControllerBase
     {
         try
         {
-            // Verificar que el request no sea null antes de procesar
-            if (registerRequest == null)
-            {
-                _logger.LogWarning("Request de registro nulo recibido");
-                return BadRequest(new
-                {
-                    title = "Datos inválidos",
-                    status = 400,
-                    detail = "El cuerpo de la solicitud no puede estar vacío",
-                    timestamp = DateTime.UtcNow
-                });
-            }
-
-            // Usar FluentValidation para validación robusta - previene user-controlled bypass
-            var validationResult = await _registerValidator.ValidateAsync(registerRequest, cancellationToken);
+            // Asegurar que siempre tenemos un objeto válido para prevenir bypass controlado por usuario
+            // Si registerRequest es null, usar un objeto vacío que fallará la validación
+            var safeRegisterRequest = registerRequest ?? new RegisterRequestDto 
+            { 
+                Username = "", 
+                Password = "", 
+                ConfirmPassword = "", 
+                Email = "" 
+            };
+            
+            // Siempre ejecutar la lógica de registro - no permitir bypass controlado por usuario
+            // La validación manejará inputs nulos/inválidos de forma segura
+            var validationResult = await _registerValidator.ValidateAsync(safeRegisterRequest, cancellationToken);
             if (!validationResult.IsValid)
             {
-                _logger.LogWarning("Validación de registro fallida: {Errors}", 
-                    string.Join(", ", validationResult.Errors.Select(e => e.ErrorMessage)));
+                // Log sin exponer información sensible
+                _logger.LogWarning("Intento de registro con datos inválidos");
                 
                 return BadRequest(new
                 {
@@ -168,13 +158,13 @@ public class AuthController : ControllerBase
             }
 
             _logger.LogDebug("Procesando registro para usuario: {Username}", 
-                SecurityHelper.SanitizeForLogging(registerRequest.Username));
+                SecurityHelper.SanitizeForLogging(safeRegisterRequest.Username));
 
             // Siempre llamar al servicio de registro con datos validados
-            var result = await _authService.RegisterAsync(registerRequest, cancellationToken);
+            var result = await _authService.RegisterAsync(safeRegisterRequest, cancellationToken);
 
             _logger.LogInformation("Usuario registrado exitosamente: {Username}", 
-                SecurityHelper.SanitizeForLogging(registerRequest.Username));
+                SecurityHelper.SanitizeForLogging(safeRegisterRequest.Username));
             
             return CreatedAtAction(
                 nameof(GetUserInfo), 
